@@ -56,6 +56,12 @@ la carpeta o creado con *Guardar*. Elegir una carpeta para mirarla no es
 permiso para llenarla de JSON, así que la primera vez hay que decirle el nombre;
 de ahí en adelante no vuelves a pulsar nada.
 
+Y en la otra dirección: **las imágenes que cambian en el disco se recargan
+solas**. Repintas un sprite en Aseprite, guardas, y a los pocos segundos está en
+el lienzo sin tocar nada. El editor vigila solo las imágenes que tiene cargadas,
+y por tandas, así que una carpeta con dos mil sprites cuesta lo mismo que una
+con veinte. Para archivos *nuevos* en la carpeta sigue estando *recargar*.
+
 La casilla **auto** lo desactiva si prefieres guardar tú, con <kbd>Ctrl</kbd>+<kbd>S</kbd>.
 Si una escritura falla —permiso caducado, carpeta desmontada— el autoguardado
 se detiene y lo dice, en vez de reintentar en bucle contra un disco que ya no
@@ -242,6 +248,7 @@ src/
   assets.js      carpeta local, arrastrar-y-soltar, manifiesto remoto
   relink.js      cuadrar las rutas de la escena con los archivos cargados
   autosave.js    escribir la escena en su archivo del disco, sola
+  watch.js       enterarse de que un archivo ha cambiado por debajo
   storage.js     autoguardado en IndexedDB
   main.js        el pegamento
   ui/            dom, stage, timeline, inspector
@@ -292,7 +299,10 @@ El autoguardado en disco se prueba en los dos sitios: la cola en `node --test`
 —un chaparrón de ediciones es *una* escritura, dos nunca se solapan, una que
 llega a mitad de otra no se pierde, un fallo la detiene en vez de reintentar— y
 el cableado en Playwright, con la escritura sustituida por un espía, porque el
-navegador no deja abrir el selector de carpetas desde un test.
+navegador no deja abrir el selector de carpetas desde un test. El vigilante va
+igual: el anillo y las tandas en Node —incluido que un sprite pillado a medio
+escribir siga contando como cambiado hasta que alguien consiga leerlo— y en
+Playwright un `handle` de mentira al que se le cambian los bytes por debajo.
 
 El truco que los hace fiables es `window.editor`: la aplicación expone su propio
 estado, así que un test comprueba `store.scene.actors[0].delay` en vez de

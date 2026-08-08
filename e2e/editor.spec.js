@@ -269,6 +269,51 @@ test('without a folder nothing is written to a disk that is not there', async ({
   expect(await page.evaluate(() => window.editor.disk.writes)).toBe(0);
 });
 
+test('a sprite repainted outside the editor comes back on its own', async ({ page }) => {
+  await boot(page);
+
+  // A file handle whose bytes and stamp we control: the browser will not let a
+  // test hand the page a real folder, and this is the only part that matters.
+  const before = await page.evaluate(async () => {
+    const a = window.editor;
+    const square = async colour => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 4;
+      const g = c.getContext('2d');
+      g.fillStyle = colour;
+      g.fillRect(0, 0, 4, 4);
+      return new Promise(r => c.toBlob(r, 'image/png'));
+    };
+    const state = { blob: await square('#ff0000'), stamp: 1000 };
+    window.__repaint = async () => {
+      state.blob = await square('#00ff00');
+      state.stamp = 2000;
+    };
+    a.assets.entries.set('vigilado.png', {
+      handle: {
+        getFile: async () =>
+          new File([state.blob], 'vigilado.png', { lastModified: state.stamp }),
+      },
+    });
+    window.__reloaded = [];
+    const chain = a.assets.onReload;
+    a.assets.onReload = keys => { window.__reloaded.push(...keys); chain(keys); };
+
+    a.assets.get('vigilado.png');                       // asking for it loads it
+    await new Promise(r => setTimeout(r, 400));
+    return a.assets.images.get('vigilado.png').src;
+  });
+  expect(before).toMatch(/^blob:/);
+
+  await page.evaluate(() => window.__repaint());        // "saved from Aseprite"
+  await page.waitForFunction(() => window.__reloaded.includes('vigilado.png'),
+                             null, { timeout: 8000 });
+
+  const after = await page.evaluate(() => window.editor.assets.images.get('vigilado.png').src);
+  expect(after, 'the stale blob must not be reused').not.toBe(before);
+  await expect(page.locator('#status')).toContainText('actualizado desde el disco');
+});
+
 test('the scene survives a reload', async ({ page }) => {
   await boot(page);
   await page.click('#outliner-actors li:first-child');
