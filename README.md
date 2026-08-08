@@ -209,6 +209,27 @@ python3 -m http.server 8000
 y abre `http://127.0.0.1:8000/`. Cualquier servidor estático vale; hace falta
 uno porque los módulos ES no se cargan desde `file://`.
 
+## Tests
+
+```bash
+node --test
+```
+
+Sin dependencias ni configuración: el ejecutor de Node, sobre los módulos que no
+tocan el DOM, que son los que guardan la lógica en la que uno se equivoca de
+verdad. El de exportación es el que más gana: el GIF se **decodifica otra vez**
+con un descompresor LZW escrito aparte, así que codificador y descompresor
+tienen que ponerse de acuerdo en algo externo a los dos —incluido el caso en el
+que el diccionario se llena a mitad de fotograma—, y del zip se comprueban las
+firmas, los desplazamientos del directorio central y un CRC-32 de valor
+publicado.
+
+Lo que **no** cubren es el cableado de la interfaz, que es justo donde apareció
+el primer fallo de verdad: una regla de CSS con un selector de id ganándole al
+`[hidden]` del navegador dejaba el velo de «suelta los archivos» tapando la
+página entera. Eso pide un navegador de verdad (Playwright) o un ojo humano, no
+`node --test`.
+
 ## Licencia
 
 MIT.

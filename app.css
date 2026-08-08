@@ -17,6 +17,11 @@
 
 * { box-sizing: border-box; }
 
+/* The UA rule for [hidden] is display:none at the weakest specificity going,
+   so any id or class rule that sets display silently defeats it. Say it once,
+   loudly, instead of remembering it at every call site. */
+[hidden] { display: none !important; }
+
 html, body {
   height: 100%;
   margin: 0;
