@@ -146,7 +146,15 @@ Una capa con `depth` alto se dibuja **delante** de los actores: es como se hace
 la hierba en primer plano.
 
 Para que el bucle cierre sin costura, `speed × loop_frames` tiene que ser
-múltiplo de `tile_period`. El panel te dice si se cumple.
+múltiplo de `tile_period`. El panel de la capa lo dice, y la barra de estado
+avisa **sin tener que seleccionarla**, con el tamaño exacto del salto: una capa
+que se queda a media baldosa es invisible en un fotograma suelto y evidentísima
+en cuanto reproduces.
+
+Esto acota bastante las velocidades posibles. Si el mosaico mide 256 px y el
+bucle 256 fotogramas, la velocidad tiene que ser entera, y la capa más lenta
+recorre una baldosa entera por bucle. Para que el fondo vaya *despacio*, o el
+bucle dura más segundos, o esa capa se dibuja más estrecha.
 
 ### Actores
 
@@ -303,6 +311,13 @@ navegador no deja abrir el selector de carpetas desde un test. El vigilante va
 igual: el anillo y las tandas en Node —incluido que un sprite pillado a medio
 escribir siga contando como cambiado hasta que alguien consiga leerlo— y en
 Playwright un `handle` de mentira al que se le cambian los bytes por debajo.
+
+Y la escena de ejemplo tiene los suyos, porque estuvo publicada con tres capas
+que saltaban y un pájaro que volaba de espaldas: que todas las capas y todos los
+ciclos cierren, que ningún actor dé un salto estando a la vista, que las capas
+vayan más rápido cuanto más cerca, y que el fotograma 0 y el fotograma
+`loop_frames` sean **la misma imagen píxel a píxel**, dibujada por el
+renderizador de verdad.
 
 El truco que los hace fiables es `window.editor`: la aplicación expone su propio
 estado, así que un test comprueba `store.scene.actors[0].delay` en vez de

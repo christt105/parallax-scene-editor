@@ -2,7 +2,7 @@
 // loop, so adding a property to the scene format is a one-line change here.
 
 import { h, clear, field, select, number, toggle, button } from './dom.js';
-import { ANCHORS, EASES, MOTION_TYPES, actorCycle } from '../scene.js';
+import { ANCHORS, EASES, MOTION_TYPES, actorCycle, layerShift } from '../scene.js';
 import { sampleKeys } from '../anim.js';
 
 const SCENE_FIELDS = [
@@ -312,13 +312,16 @@ export function renderInspector(container, ctx) {
     container.append(cycleNote(obj, scene), positionBlock(obj, ctx), motionBlock(obj, ctx));
   } else {
     const img = ctx.resolve(obj.sprite);
-    const period = obj.tile_period || (img ? img.naturalWidth : 0);
-    const travel = (obj.speed || 0) * scene.loop_frames;
-    const ok = !period || travel % period === 0;
+    const period = Math.round(obj.tile_period) || (img ? img.naturalWidth : 0);
+    // Same rounding the renderer uses, so the note and the pixels agree.
+    const travel = layerShift(obj, scene.loop_frames);
+    const off = period ? ((travel % period) + period) % period : 0;
+    const ok = !period || !off;
     container.append(h('p.note' + (ok ? '.ok' : '.warn'), {
       text: period
         ? `recorre ${travel} px en el bucle sobre un periodo de ${period} px` +
-          (ok ? ' · cierra sin costura' : ' · no cierra: dará un salto')
+          (ok ? ' · cierra sin costura'
+              : ` · no cierra: saltará ${Math.min(off, period - off)} px`)
         : 'esperando a que cargue la imagen para saber su periodo',
     }));
   }

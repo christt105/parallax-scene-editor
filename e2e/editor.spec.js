@@ -41,6 +41,29 @@ test('the demo loads and paints something', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('the demo loop closes: the last frame hands back to the first', async ({ page }) => {
+  // The arithmetic is checked in `node --test`; this checks the pixels, with
+  // the same rounding, tiling and edge extension the editor really uses.
+  await boot(page);
+  const diff = await page.evaluate(async () => {
+    const { renderScene } = await import('/src/render.js');
+    const a = window.editor;
+    const s = a.store.scene;
+    const [vw, vh] = [Math.ceil(s.canvas[0] / s.zoom), Math.ceil(s.canvas[1] / s.zoom)];
+    const shot = f => {
+      const c = document.createElement('canvas');
+      c.width = vw; c.height = vh;
+      renderScene(c.getContext('2d'), s, f, a.resolve);
+      return c.getContext('2d').getImageData(0, 0, vw, vh).data;
+    };
+    const first = shot(0), wrapped = shot(s.loop_frames);
+    let n = 0;
+    for (let i = 0; i < first.length; i++) if (first[i] !== wrapped[i]) n++;
+    return n;
+  });
+  expect(diff, 'frame 0 and frame loop_frames must be the same picture').toBe(0);
+});
+
 test('nothing invisible is sitting on top of the page', async ({ page }) => {
   await boot(page);
   // the bug: #drop-veil kept display:flex over the whole viewport, so every

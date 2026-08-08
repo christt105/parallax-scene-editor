@@ -5,8 +5,8 @@
   "zoom": 2,
   "world_height": 160,
   "align": "bottom",
-  "loop_frames": 128,
-  "fps": 60,
+  "loop_frames": 256,
+  "fps": 24,
   "backdrop": "#568cc4",
   "sprite_root": "assets",
   "layers": [
@@ -15,7 +15,7 @@
       "sprite": "layers/sky.png",
       "y": 0,
       "depth": -150,
-      "speed": 0.25,
+      "speed": 0,
       "tile_period": 320,
       "extend_up": true
     },
@@ -24,7 +24,7 @@
       "sprite": "layers/hills_far.png",
       "y": 56,
       "depth": -140,
-      "speed": 0.5,
+      "speed": 1,
       "tile_period": 256
     },
     {
@@ -32,7 +32,7 @@
       "sprite": "layers/hills_near.png",
       "y": 68,
       "depth": -130,
-      "speed": 1,
+      "speed": 2,
       "tile_period": 256
     },
     {
@@ -40,7 +40,7 @@
       "sprite": "layers/trees.png",
       "y": 74,
       "depth": -120,
-      "speed": 2,
+      "speed": 3,
       "tile_period": 256
     },
     {
@@ -57,7 +57,7 @@
       "sprite": "layers/grass_front.png",
       "y": 146,
       "depth": 100,
-      "speed": 8,
+      "speed": 6,
       "tile_period": 256
     }
   ],
@@ -82,9 +82,11 @@
       "delay": 4,
       "anchor": "center",
       "depth": 10,
+      "flip_x": true,
       "keys": [
-        { "f": 0, "x": 330, "y": 44, "ease": "in-out" },
-        { "f": 64, "x": 60, "y": 30, "ease": "in-out" }
+        { "f": 0, "x": 352, "y": 46, "ease": "linear" },
+        { "f": 144, "x": -32, "y": 30, "ease": "linear" },
+        { "f": 255, "x": -32, "y": 30, "ease": "linear" }
       ],
       "motion": [
         { "type": "sine", "axis": "y", "amp": 3, "period": 32 }
@@ -99,8 +101,8 @@
       "depth": -145,
       "opacity": 0.9,
       "keys": [
-        { "f": 0, "x": 300, "y": 34, "ease": "linear" },
-        { "f": 127, "x": -40, "y": 34, "ease": "linear" }
+        { "f": 0, "x": 348, "y": 34, "ease": "linear" },
+        { "f": 255, "x": -28, "y": 34, "ease": "linear" }
       ]
     }
   ]

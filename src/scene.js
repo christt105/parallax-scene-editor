@@ -153,6 +153,47 @@ export function cycleWarnings(scene) {
   return out;
 }
 
+/**
+ * How far a layer has scrolled at frame `f`. The renderer rounds, so a speed
+ * that does not land on a whole pixel is judged by where it actually draws.
+ */
+export const layerShift = (layer, f) => Math.round((layer.speed || 0) * f);
+
+/**
+ * Layers that do not land back on a tile boundary when the loop wraps.
+ *
+ * `periodOf` supplies the image width for layers that left `tile_period` at 0;
+ * without it those are skipped rather than guessed at, because a wrong warning
+ * about a file that has not loaded yet is worse than none.
+ */
+export function seamWarnings(scene, periodOf = () => 0) {
+  const out = [];
+  for (const l of scene.layers) {
+    if (l.visible === false || !l.sprite || !l.speed || l.repeat === 'none') continue;
+    const period = Math.round(l.tile_period) || Math.round(periodOf(l)) || 0;
+    if (!period) continue;
+    const travel = layerShift(l, scene.loop_frames);
+    const off = ((travel % period) + period) % period;
+    if (off) {
+      out.push({
+        layer: l,
+        period,
+        travel,
+        off: Math.min(off, period - off),
+        text: `«${l.name}» recorre ${travel} px en el bucle y el mosaico mide ${period}: ` +
+              `dará un salto de ${Math.min(off, period - off)} px al reiniciar. ` +
+              `Ajusta la velocidad, el periodo o los fotogramas del bucle.`,
+      });
+    }
+  }
+  return out;
+}
+
+/** Everything that will make the loop visibly jump, actors and layers alike. */
+export function loopWarnings(scene, periodOf) {
+  return [...seamWarnings(scene, periodOf), ...cycleWarnings(scene)];
+}
+
 /** Strip values equal to the defaults so saved JSON stays readable. */
 export function compact(scene) {
   const trim = (obj, defs) => {
