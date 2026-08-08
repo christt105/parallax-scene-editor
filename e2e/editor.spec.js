@@ -191,6 +191,84 @@ test('exporting produces a real GIF', async ({ page }) => {
   expect(head.size).toBeGreaterThan(1000);
 });
 
+/**
+ * Stand in for an opened folder. Playwright cannot drive the directory picker,
+ * so the handle is faked at the only place that matters: the write.
+ */
+async function fakeFolder(page, scenePath = 'scene.json') {
+  await page.evaluate(path => {
+    const a = window.editor;
+    window.__writes = [];
+    Object.defineProperty(a.assets, 'canWrite', { value: true, configurable: true });
+    a.assets.label = 'proyecto';
+    a.assets.writeText = async (p, text) => { window.__writes.push({ path: p, text }); return p; };
+    a.scenePath = path;
+    a.disk.seed(path, '');       // as if this file were already on disk
+    a.refresh();
+  }, scenePath);
+}
+
+test('with a folder open, an edit reaches the file by itself', async ({ page }) => {
+  await boot(page);
+  await fakeFolder(page);
+  expect(await page.evaluate(() => window.__writes.length))
+    .toBe(0);                                    // opening a folder writes nothing
+
+  await page.click('#outliner-actors li:first-child');
+  const name = page.locator('#right [data-field=name] input');
+  await name.fill('guardado solo');
+  await name.blur();
+
+  await page.waitForFunction(() => window.__writes.length > 0, null, { timeout: 4000 });
+  await page.waitForTimeout(300);
+  const writes = await page.evaluate(() => window.__writes);
+  expect(writes.length, 'a burst of typing is one write, not one per keystroke')
+    .toBeLessThanOrEqual(2);
+  expect(writes.at(-1).path).toBe('scene.json');
+  expect(JSON.parse(writes.at(-1).text).actors[0].name).toBe('guardado solo');
+
+  await expect(page.locator('#save-state')).toContainText('scene.json');
+  expect(await page.evaluate(() => window.editor.store.dirty)).toBe(false);
+});
+
+test('unticking auto stops the writes, ticking it back sends them', async ({ page }) => {
+  await boot(page);
+  await fakeFolder(page);
+
+  await page.uncheck('#chk-autosave');
+  await page.evaluate(() => window.editor.editIndex('actor', 0, null, a => { a.name = 'a solas'; }));
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => window.__writes.length)).toBe(0);
+  await expect(page.locator('#save-state')).toContainText('sin guardar');
+
+  await page.check('#chk-autosave');
+  await page.waitForFunction(() => window.__writes.length > 0, null, { timeout: 4000 });
+  expect(await page.evaluate(() => JSON.parse(window.__writes.at(-1).text).actors[0].name))
+    .toBe('a solas');
+});
+
+test('a folder that refuses the write says so and gives up', async ({ page }) => {
+  await boot(page);
+  await fakeFolder(page);
+  await page.evaluate(() => {
+    window.editor.assets.writeText = async () => { throw new Error('permiso denegado'); };
+  });
+
+  await page.evaluate(() => window.editor.editIndex('actor', 0, null, a => { a.name = 'sin permiso'; }));
+  await expect(page.locator('#save-state')).toContainText('autoguardado detenido', { timeout: 4000 });
+  await expect(page.locator('#status')).toContainText('no se pudo guardar');
+  expect(await page.evaluate(() => window.editor.disk.enabled)).toBe(false);
+});
+
+test('without a folder nothing is written to a disk that is not there', async ({ page }) => {
+  await boot(page);
+  await expect(page.locator('#save-state')).toContainText('solo en el navegador');
+  await page.click('#outliner-actors li:first-child');
+  await page.locator('#right [data-field=name] input').fill('sin carpeta');
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => window.editor.disk.writes)).toBe(0);
+});
+
 test('the scene survives a reload', async ({ page }) => {
   await boot(page);
   await page.click('#outliner-actors li:first-child');
