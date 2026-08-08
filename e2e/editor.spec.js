@@ -74,16 +74,16 @@ test('a loop that does not close offers the numbers that would close it', async 
     a.select('layer', 2);
   });
   const panel = page.locator('#right');
-  await expect(panel.locator('.note.warn')).toContainText('no cierra');
+  await expect(panel.locator('.note.warn')).toContainText('does not close');
 
-  const fix = panel.locator('.fix button', { hasText: 'velocidad 2' });
+  const fix = panel.locator('.fix button', { hasText: 'speed 2' });
   await expect(fix).toBeVisible();
   await fix.click();
 
   expect(await page.evaluate(() => window.editor.store.scene.layers[2].speed)).toBe(2);
-  // the panel must redraw: a note still reading «no cierra» after pressing the
+  // the panel must redraw: a note still reading «does not close» after pressing the
   // button that fixes it is worse than no button at all
-  await expect(panel.locator('.note.ok').first()).toContainText('cierra sin costura');
+  await expect(panel.locator('.note.ok').first()).toContainText('closes seamlessly');
   await expect(panel.locator('.fix')).toHaveCount(0);
 });
 
@@ -95,7 +95,7 @@ test('an actor whose cels will never divide the loop is offered the order trick'
     a.select('actor', 0);
   });
   const panel = page.locator('#right');
-  const fix = panel.locator('.fix button', { hasText: 'orden 0,1,2,1' });
+  const fix = panel.locator('.fix button', { hasText: 'order 0,1,2,1' });
   await expect(fix).toBeVisible();
   await fix.click();
 
@@ -106,7 +106,7 @@ test('an actor whose cels will never divide the loop is offered the order trick'
   expect(after.order).toEqual([0, 1, 2, 1]);
   // the order alone would still not divide the loop; the delay has to come too
   expect(after.loop % (after.order.length * after.delay)).toBe(0);
-  await expect(panel.locator('.note.ok').first()).toContainText('encaja');
+  await expect(panel.locator('.note.ok').first()).toContainText('fits');
 });
 
 test('nothing invisible is sitting on top of the page', async ({ page }) => {
@@ -129,7 +129,7 @@ test('the export dialog opens by clicking it, not just by script', async ({ page
   await boot(page);
   await page.click('#btn-export');
   await expect(page.locator('#modal')).toBeVisible();
-  await expect(page.locator('#modal-title')).toHaveText('Exportar');
+  await expect(page.locator('#modal-title')).toHaveText('Export');
   await page.click('#modal-close');
   await expect(page.locator('#modal')).toBeHidden();
 });
@@ -141,9 +141,9 @@ test('typing in the inspector keeps the caret where it is', async ({ page }) => 
   const name = page.locator('#right [data-field=name] input');
   await name.click();
   await name.fill('');
-  await page.keyboard.type('corredor veloz');
+  await page.keyboard.type('quick runner');
   await expect(name).toBeFocused();
-  await expect(name).toHaveValue('corredor veloz');
+  await expect(name).toHaveValue('quick runner');
 
   // a number field, typed digit by digit, must not lose focus either
   const delay = page.locator('#right [data-field=delay] input');
@@ -268,7 +268,7 @@ async function fakeFolder(page, scenePath = 'scene.json') {
     const a = window.editor;
     window.__writes = [];
     Object.defineProperty(a.assets, 'canWrite', { value: true, configurable: true });
-    a.assets.label = 'proyecto';
+    a.assets.label = 'project';
     a.assets.writeText = async (p, text) => { window.__writes.push({ path: p, text }); return p; };
     a.scenePath = path;
     a.disk.seed(path, '');       // as if this file were already on disk
@@ -284,7 +284,7 @@ test('with a folder open, an edit reaches the file by itself', async ({ page }) 
 
   await page.click('#outliner-actors li:first-child');
   const name = page.locator('#right [data-field=name] input');
-  await name.fill('guardado solo');
+  await name.fill('saved by itself');
   await name.blur();
 
   await page.waitForFunction(() => window.__writes.length > 0, null, { timeout: 4000 });
@@ -293,7 +293,7 @@ test('with a folder open, an edit reaches the file by itself', async ({ page }) 
   expect(writes.length, 'a burst of typing is one write, not one per keystroke')
     .toBeLessThanOrEqual(2);
   expect(writes.at(-1).path).toBe('scene.json');
-  expect(JSON.parse(writes.at(-1).text).actors[0].name).toBe('guardado solo');
+  expect(JSON.parse(writes.at(-1).text).actors[0].name).toBe('saved by itself');
 
   await expect(page.locator('#save-state')).toContainText('scene.json');
   expect(await page.evaluate(() => window.editor.store.dirty)).toBe(false);
@@ -304,15 +304,15 @@ test('unticking auto stops the writes, ticking it back sends them', async ({ pag
   await fakeFolder(page);
 
   await page.uncheck('#chk-autosave');
-  await page.evaluate(() => window.editor.editIndex('actor', 0, null, a => { a.name = 'a solas'; }));
+  await page.evaluate(() => window.editor.editIndex('actor', 0, null, a => { a.name = 'on its own'; }));
   await page.waitForTimeout(400);
   expect(await page.evaluate(() => window.__writes.length)).toBe(0);
-  await expect(page.locator('#save-state')).toContainText('sin guardar');
+  await expect(page.locator('#save-state')).toContainText('unsaved');
 
   await page.check('#chk-autosave');
   await page.waitForFunction(() => window.__writes.length > 0, null, { timeout: 4000 });
   expect(await page.evaluate(() => JSON.parse(window.__writes.at(-1).text).actors[0].name))
-    .toBe('a solas');
+    .toBe('on its own');
 });
 
 test('a folder that refuses the write says so and gives up', async ({ page }) => {
@@ -322,17 +322,17 @@ test('a folder that refuses the write says so and gives up', async ({ page }) =>
     window.editor.assets.writeText = async () => { throw new Error('permiso denegado'); };
   });
 
-  await page.evaluate(() => window.editor.editIndex('actor', 0, null, a => { a.name = 'sin permiso'; }));
-  await expect(page.locator('#save-state')).toContainText('autoguardado detenido', { timeout: 4000 });
-  await expect(page.locator('#status')).toContainText('no se pudo guardar');
+  await page.evaluate(() => window.editor.editIndex('actor', 0, null, a => { a.name = 'no permission'; }));
+  await expect(page.locator('#save-state')).toContainText('autosave stopped', { timeout: 4000 });
+  await expect(page.locator('#status')).toContainText('could not save');
   expect(await page.evaluate(() => window.editor.disk.enabled)).toBe(false);
 });
 
 test('without a folder nothing is written to a disk that is not there', async ({ page }) => {
   await boot(page);
-  await expect(page.locator('#save-state')).toContainText('solo en el navegador');
+  await expect(page.locator('#save-state')).toContainText('browser only');
   await page.click('#outliner-actors li:first-child');
-  await page.locator('#right [data-field=name] input').fill('sin carpeta');
+  await page.locator('#right [data-field=name] input').fill('no folder');
   await page.waitForTimeout(400);
   expect(await page.evaluate(() => window.editor.disk.writes)).toBe(0);
 });
@@ -357,41 +357,41 @@ test('a sprite repainted outside the editor comes back on its own', async ({ pag
       state.blob = await square('#00ff00');
       state.stamp = 2000;
     };
-    a.assets.entries.set('vigilado.png', {
+    a.assets.entries.set('watched.png', {
       handle: {
         getFile: async () =>
-          new File([state.blob], 'vigilado.png', { lastModified: state.stamp }),
+          new File([state.blob], 'watched.png', { lastModified: state.stamp }),
       },
     });
     window.__reloaded = [];
     const chain = a.assets.onReload;
     a.assets.onReload = keys => { window.__reloaded.push(...keys); chain(keys); };
 
-    a.assets.get('vigilado.png');                       // asking for it loads it
+    a.assets.get('watched.png');                       // asking for it loads it
     await new Promise(r => setTimeout(r, 400));
-    return a.assets.images.get('vigilado.png').src;
+    return a.assets.images.get('watched.png').src;
   });
   expect(before).toMatch(/^blob:/);
 
   await page.evaluate(() => window.__repaint());        // "saved from Aseprite"
-  await page.waitForFunction(() => window.__reloaded.includes('vigilado.png'),
+  await page.waitForFunction(() => window.__reloaded.includes('watched.png'),
                              null, { timeout: 8000 });
 
-  const after = await page.evaluate(() => window.editor.assets.images.get('vigilado.png').src);
+  const after = await page.evaluate(() => window.editor.assets.images.get('watched.png').src);
   expect(after, 'the stale blob must not be reused').not.toBe(before);
-  await expect(page.locator('#status')).toContainText('actualizado desde el disco');
+  await expect(page.locator('#status')).toContainText('updated from disk');
 });
 
 test('the scene survives a reload', async ({ page }) => {
   await boot(page);
   await page.click('#outliner-actors li:first-child');
   const name = page.locator('#right [data-field=name] input');
-  await name.fill('sobreviviente');
+  await name.fill('survivor');
   await name.blur();
   await page.waitForTimeout(600);   // let the autosave debounce run
 
   await page.reload();
   await page.waitForFunction(() => !!window.editor, null, { timeout: 15000 });
   expect(await page.evaluate(() => window.editor.store.scene.actors[0].name))
-    .toBe('sobreviviente');
+    .toBe('survivor');
 });

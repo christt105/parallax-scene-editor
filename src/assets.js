@@ -131,7 +131,7 @@ export class AssetLibrary {
   async openFolder(handle = null) {
     const dir = handle || await window.showDirectoryPicker({ id: 'pse-project', mode: 'readwrite' });
     const ok = await ensurePermission(dir, 'readwrite');
-    if (!ok) throw new Error('permiso denegado sobre la carpeta');
+    if (!ok) throw new Error('permission denied on the folder');
     this._reset('folder', dir.name);
     this.dirHandle = dir;
     await this._scan(dir);
@@ -176,7 +176,7 @@ export class AssetLibrary {
 
   /** Write a text file into the opened folder, creating parent folders. */
   async writeText(path, text) {
-    if (!this.canWrite) throw new Error('no hay carpeta abierta con permiso de escritura');
+    if (!this.canWrite) throw new Error('no folder open with write permission');
     const parts = normPath(path).split('/');
     let dir = this.dirHandle;
     for (const part of parts.slice(0, -1)) {
@@ -215,12 +215,12 @@ export class AssetLibrary {
     }
 
     if (roots.length) {
-      if (!before) this._reset('drop', roots.length === 1 ? roots[0].name : `${roots.length} elementos`);
+      if (!before) this._reset('drop', roots.length === 1 ? roots[0].name : `${roots.length} items`);
       for (const root of roots) await walkEntry(root, '', this.entries);
     } else {
       const files = [...(dataTransfer.files || [])];
       if (!files.length) return 0;
-      if (!before) this._reset('drop', `${files.length} archivos`);
+      if (!before) this._reset('drop', `${files.length} files`);
       for (const f of files) {
         if (IMAGE_RE.test(f.name) || f.name.endsWith('.json')) {
           this.entries.set(normPath(f.name), { file: f, json: f.name.endsWith('.json') });
@@ -237,7 +237,7 @@ export class AssetLibrary {
     const before = this.entries.size;
     const folder = files[0].webkitRelativePath?.split('/')[0];
     if (!before || folder) {
-      this._reset('drop', folder || `${files.length} archivos`);
+      this._reset('drop', folder || `${files.length} files`);
     }
     for (const f of files) {
       const rel = folder
@@ -266,7 +266,7 @@ export class AssetLibrary {
   // ---------------------------------------------------------------- url --
   async loadManifest(base) {
     const res = await fetch(`${base}/project.json`);
-    if (!res.ok) throw new Error(`no encuentro ${base}/project.json`);
+    if (!res.ok) throw new Error(`cannot find ${base}/project.json`);
     const manifest = await res.json();
     this._reset('url', manifest.name || base);
     for (const path of manifest.files || []) {
