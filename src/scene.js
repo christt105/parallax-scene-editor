@@ -145,7 +145,7 @@ export function cycleWarnings(scene) {
       out.push({
         actor: a,
         cycle,
-        text: `«${a.name}» cycles every ${cycle} frames and ${scene.loop_frames} is not a ` +
+        text: `“${a.name}” cycles every ${cycle} frames and ${scene.loop_frames} is not a ` +
               `multiple: it will jump at the wrap. Try a there-and-back order (0,1,2,1) or another delay.`,
       });
     }
@@ -180,7 +180,7 @@ export function seamWarnings(scene, periodOf = () => 0) {
         period,
         travel,
         off: Math.min(off, period - off),
-        text: `«${l.name}» travels ${travel} px per loop over a ${period} px tile: ` +
+        text: `“${l.name}” travels ${travel} px per loop over a ${period} px tile: ` +
               `it will jump ${Math.min(off, period - off)} px at the wrap. ` +
               `Its panel lists the speeds that would close it.`,
       });

@@ -7,7 +7,14 @@
 
 import { test, expect } from '@playwright/test';
 
-/** Wait for the demo to be on screen with its images decoded. */
+/**
+ * Wait for the demo to be on screen with its images decoded.
+ *
+ * *Every* image, not just the ones the scene draws: an asset thumbnail landing
+ * late makes the grid redraw, which detaches whatever element a test has just
+ * located and turns `boundingBox()` into null. Waiting for the last one is the
+ * difference between a suite you trust and one you rerun.
+ */
 async function boot(page) {
   const errors = [];
   page.on('console', m => m.type() === 'error' && errors.push(m.text()));
@@ -16,8 +23,11 @@ async function boot(page) {
   await page.waitForFunction(() => {
     const a = window.editor;
     return a && a.store.scene.layers.length > 0 &&
-      a.store.scene.layers.every(l => a.resolve(l.sprite));
+      a.store.scene.layers.every(l => a.resolve(l.sprite)) &&
+      a.assets.paths().every(p => p.endsWith('.json') || a.assets.get(p));
   }, null, { timeout: 15000 });
+  // and let the grid's own redraw debounce run out
+  await page.waitForTimeout(250);
   return errors;
 }
 
@@ -81,7 +91,7 @@ test('a loop that does not close offers the numbers that would close it', async 
   await fix.click();
 
   expect(await page.evaluate(() => window.editor.store.scene.layers[2].speed)).toBe(2);
-  // the panel must redraw: a note still reading «does not close» after pressing the
+  // the panel must redraw: a note still reading “does not close” after pressing the
   // button that fixes it is worse than no button at all
   await expect(panel.locator('.note.ok').first()).toContainText('closes seamlessly');
   await expect(panel.locator('.fix')).toHaveCount(0);
