@@ -1,0 +1,107 @@
+{
+  "format": "parallax-scene/1",
+  "name": "demo",
+  "canvas": [640, 360],
+  "zoom": 2,
+  "world_height": 160,
+  "align": "bottom",
+  "loop_frames": 128,
+  "fps": 60,
+  "backdrop": "#568cc4",
+  "sprite_root": "assets",
+  "layers": [
+    {
+      "name": "cielo",
+      "sprite": "layers/sky.png",
+      "y": 0,
+      "depth": -150,
+      "speed": 0.25,
+      "tile_period": 320,
+      "extend_up": true
+    },
+    {
+      "name": "montañas",
+      "sprite": "layers/hills_far.png",
+      "y": 56,
+      "depth": -140,
+      "speed": 0.5,
+      "tile_period": 256
+    },
+    {
+      "name": "colinas",
+      "sprite": "layers/hills_near.png",
+      "y": 68,
+      "depth": -130,
+      "speed": 1,
+      "tile_period": 256
+    },
+    {
+      "name": "arboleda",
+      "sprite": "layers/trees.png",
+      "y": 74,
+      "depth": -120,
+      "speed": 2,
+      "tile_period": 256
+    },
+    {
+      "name": "suelo",
+      "sprite": "layers/ground.png",
+      "y": 122,
+      "depth": -110,
+      "speed": 4,
+      "tile_period": 256,
+      "extend_down": true
+    },
+    {
+      "name": "hierba delante",
+      "sprite": "layers/grass_front.png",
+      "y": 146,
+      "depth": 100,
+      "speed": 8,
+      "tile_period": 256
+    }
+  ],
+  "actors": [
+    {
+      "name": "corredor",
+      "sprite": "sprites/walker.png",
+      "frames": 4,
+      "delay": 4,
+      "x": 96,
+      "y": 150,
+      "anchor": "bottom-center",
+      "depth": 20,
+      "motion": [
+        { "type": "wobble", "axis": "y", "amp": 1, "hold": 8 }
+      ]
+    },
+    {
+      "name": "pájaro",
+      "sprite": "sprites/bird.png",
+      "frames": 2,
+      "delay": 4,
+      "anchor": "center",
+      "depth": 10,
+      "keys": [
+        { "f": 0, "x": 330, "y": 44, "ease": "in-out" },
+        { "f": 64, "x": 60, "y": 30, "ease": "in-out" }
+      ],
+      "motion": [
+        { "type": "sine", "axis": "y", "amp": 3, "period": 32 }
+      ]
+    },
+    {
+      "name": "nube",
+      "sprite": "sprites/cloud.png",
+      "frames": 1,
+      "delay": 1,
+      "anchor": "center",
+      "depth": -145,
+      "opacity": 0.9,
+      "keys": [
+        { "f": 0, "x": 300, "y": 34, "ease": "linear" },
+        { "f": 127, "x": -40, "y": 34, "ease": "linear" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,297 @@
+// The right-hand panel. Every control is declared as data and rendered by one
+// loop, so adding a property to the scene format is a one-line change here.
+
+import { h, clear, field, select, number, toggle, button } from './dom.js';
+import { ANCHORS, EASES, MOTION_TYPES, actorCycle } from '../scene.js';
+import { sampleKeys } from '../anim.js';
+
+const SCENE_FIELDS = [
+  { key: 'name', label: 'Nombre', type: 'text' },
+  { key: 'canvas', label: 'Lienzo', type: 'size' },
+  { key: 'zoom', label: 'Zoom', type: 'int', min: 1, max: 16,
+    hint: 'aumento entero, sin suavizado' },
+  { key: 'loop_frames', label: 'Fotogramas', type: 'int', min: 1 },
+  { key: 'fps', label: 'FPS', type: 'number', step: 0.001 },
+  { key: 'world_height', label: 'Alto del mundo', type: 'int', min: 0, nullable: true,
+    hint: 'alto en px al que se ancla la escena; vacío = todo el alto visible' },
+  { key: 'align', label: 'Anclaje vertical', type: 'select',
+    options: [['bottom', 'abajo'], ['center', 'centro'], ['top', 'arriba']] },
+  { key: 'backdrop', label: 'Color de fondo', type: 'color' },
+  { key: 'sprite_root', label: 'Raíz de assets', type: 'text',
+    hint: 'prefijo que se antepone a cada ruta de sprite' },
+];
+
+const LAYER_FIELDS = [
+  { key: 'name', label: 'Nombre', type: 'text' },
+  { key: 'sprite', label: 'Imagen', type: 'asset' },
+  { key: 'y', label: 'y', type: 'number' },
+  { key: 'depth', label: 'Profundidad', type: 'number',
+    hint: 'menor = más al fondo; puede ir delante de los actores' },
+  { key: 'speed', label: 'Velocidad x', type: 'number', step: 0.125,
+    hint: 'px por fotograma; positivo desplaza el decorado a la izquierda' },
+  { key: 'speed_y', label: 'Velocidad y', type: 'number', step: 0.125 },
+  { key: 'tile_period', label: 'Periodo', type: 'int', min: 0,
+    hint: '0 = el ancho de la imagen. Debe dividir velocidad × fotogramas para cerrar el bucle' },
+  { key: 'repeat', label: 'Repetir', type: 'select', options: [['x', 'en x'], ['none', 'no']] },
+  { key: 'extend_up', label: 'Estirar arriba', type: 'bool' },
+  { key: 'extend_down', label: 'Estirar abajo', type: 'bool' },
+  { key: 'opacity', label: 'Opacidad', type: 'range', min: 0, max: 1, step: 0.05 },
+];
+
+const ACTOR_FIELDS = [
+  { key: 'name', label: 'Nombre', type: 'text' },
+  { key: 'sprite', label: 'Sprite', type: 'asset' },
+  { key: 'frames', label: 'Fotogramas', type: 'int', min: 1, detect: true },
+  { key: 'grid', label: 'Rejilla', type: 'grid',
+    hint: 'columnas × filas si la hoja no es una tira horizontal' },
+  { key: 'delay', label: 'Retardo', type: 'int', min: 1, hint: 'fotogramas por cel' },
+  { key: 'order', label: 'Orden', type: 'order', hint: 'ej. 0,1,2,1 para ida y vuelta' },
+  { key: 'offset', label: 'Desfase', type: 'int', hint: 'desplaza el ciclo dentro del bucle' },
+  { key: 'anchor', label: 'Anclaje', type: 'select', options: ANCHORS },
+  { key: 'depth', label: 'Profundidad', type: 'number' },
+  { key: 'scale', label: 'Escala', type: 'int', min: 1, max: 8 },
+  { key: 'flip_x', label: 'Voltear x', type: 'bool' },
+  { key: 'flip_y', label: 'Voltear y', type: 'bool' },
+  { key: 'opacity', label: 'Opacidad', type: 'range', min: 0, max: 1, step: 0.05 },
+];
+
+function control(spec, obj, ctx, onSet) {
+  const v = obj[spec.key];
+  const set = value => onSet(spec.key, value);
+
+  switch (spec.type) {
+    case 'text':
+      return h('input', { type: 'text', value: v ?? '', oninput: e => set(e.target.value) });
+
+    case 'color':
+      return h('div.row', {}, [
+        h('input', { type: 'color', value: v || '#000000', oninput: e => set(e.target.value) }),
+        h('input', { type: 'text', value: v || '', class: 'mono',
+                     oninput: e => set(e.target.value) }),
+      ]);
+
+    case 'bool':
+      return toggle(v, set);
+
+    case 'select':
+      return select(spec.options, v, set);
+
+    case 'range': {
+      const out = h('span.range-value', { text: (+v).toFixed(2) });
+      return h('div.row', {}, [
+        h('input', { type: 'range', min: spec.min, max: spec.max, step: spec.step, value: v,
+                     oninput: e => { out.textContent = (+e.target.value).toFixed(2); set(+e.target.value); } }),
+        out,
+      ]);
+    }
+
+    case 'int':
+    case 'number':
+      return h('input', {
+        type: 'number', value: v ?? '', min: spec.min, max: spec.max,
+        step: spec.step ?? (spec.type === 'int' ? 1 : 0.5),
+        oninput: e => {
+          if (e.target.value === '') return set(spec.nullable ? null : 0);
+          set(spec.type === 'int' ? Math.round(+e.target.value) : +e.target.value);
+        },
+      });
+
+    case 'size':
+      return h('div.row', {}, [
+        number(v[0], n => set([Math.max(1, n | 0), v[1]]), { min: 1 }),
+        h('span.times', { text: '×' }),
+        number(v[1], n => set([v[0], Math.max(1, n | 0)]), { min: 1 }),
+      ]);
+
+    case 'grid':
+      return h('div.row', {}, [
+        number(v ? v[0] : '', n => set(n > 0 ? [n, (v && v[1]) || 1] : null), { min: 1, placeholder: 'cols' }),
+        h('span.times', { text: '×' }),
+        number(v ? v[1] : '', n => set(n > 0 ? [(v && v[0]) || 1, n] : null), { min: 1, placeholder: 'filas' }),
+      ]);
+
+    case 'order':
+      return h('input', {
+        type: 'text', value: (v || []).join(','), placeholder: 'automático', class: 'mono',
+        oninput: e => {
+          const list = e.target.value.split(',').map(s => parseInt(s, 10))
+            .filter(n => Number.isInteger(n) && n >= 0);
+          set(list.length ? list : null);
+        },
+      });
+
+    case 'asset': {
+      const node = h('div.row', {}, [
+        h('input', { type: 'text', value: v || '', class: 'mono grow',
+                     oninput: e => set(e.target.value) }),
+        button('…', () => ctx.pickAsset(v, path => { set(path); ctx.refresh(); }), 'slim'),
+      ]);
+      return node;
+    }
+
+    default:
+      return h('span', { text: String(v) });
+  }
+}
+
+function fieldsFor(specs, obj, ctx, onSet) {
+  return specs.map(spec => {
+    const node = control(spec, obj, ctx, onSet);
+    const row = field(spec.label, node, spec.hint);
+    if (spec.detect) {
+      row.querySelector('.field-label').append(
+        button('detectar', () => ctx.detectFrames(), 'link'));
+    }
+    return row;
+  });
+}
+
+// ------------------------------------------------------------------ blocks --
+
+function positionBlock(actor, ctx) {
+  const { store, frame } = ctx;
+  const loop = store.scene.loop_frames;
+  const hasKeys = !!(actor.keys && actor.keys.length);
+  const key = hasKeys && ctx.selKey >= 0 ? actor.keys[ctx.selKey] : null;
+  const [x, y] = hasKeys ? (key ? [key.x, key.y] : sampleKeys(actor.keys, frame, loop))
+                         : [actor.x, actor.y];
+
+  const setPos = (axis, value) => ctx.editUI('pos', a => {
+    if (hasKeys) {
+      const target = key || a.keys[nearestKey(a.keys, frame)];
+      target[axis] = Math.round(value);
+    } else {
+      a[axis] = Math.round(value);
+    }
+  });
+
+  const rows = [
+    field('x', number(Math.round(x), v => setPos('x', v))),
+    field('y', number(Math.round(y), v => setPos('y', v))),
+  ];
+
+  if (hasKeys && !key) {
+    rows.push(h('p.note', { text: `interpolado en el fotograma ${frame}: al editar se mueve la clave más cercana` }));
+  }
+  if (key) {
+    rows.push(field('Suavizado', select(EASES, key.ease || 'linear',
+      v => ctx.editUI('ease', a => { a.keys[ctx.selKey].ease = v; }))));
+    rows.push(field('Fotograma', number(key.f, v => ctx.editUI('keyframe', a => {
+      a.keys[ctx.selKey].f = Math.max(0, Math.min(loop - 1, Math.round(v)));
+      a.keys.sort((p, q) => p.f - q.f);
+      ctx.selKey = a.keys.findIndex(k => k.f === Math.round(v));
+    }), { min: 0, max: loop - 1 })));
+  }
+
+  rows.push(h('div.row.gap', {}, [
+    button(hasKeys ? '+ Clave aquí' : 'Convertir en animado', () => ctx.addKey()),
+    hasKeys && key ? button('− Borrar clave', () => ctx.deleteKey(), 'danger') : null,
+  ]));
+
+  return h('section.block', {}, [h('h3', { text: 'Posición' }), ...rows]);
+}
+
+function nearestKey(keys, frame) {
+  let best = 0, bestD = Infinity;
+  keys.forEach((k, i) => {
+    const d = Math.abs(k.f - frame);
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
+function motionBlock(actor, ctx) {
+  const list = actor.motion || [];
+  const rows = list.map((m, i) => h('div.motion', {}, [
+    h('div.row', {}, [
+      select(MOTION_TYPES.map(t => [t, { sine: 'seno', cosine: 'coseno', wobble: 'temblor' }[t]]),
+             m.type || 'sine', v => ctx.editUI('motion', a => { a.motion[i].type = v; })),
+      select([['y', 'eje y'], ['x', 'eje x']], m.axis || 'y',
+             v => ctx.editUI('motion', a => { a.motion[i].axis = v; })),
+      button('×', () => ctx.edit(null, a => {
+        a.motion.splice(i, 1);
+        if (!a.motion.length) a.motion = null;
+      }), 'slim danger'),
+    ]),
+    h('div.row', {}, [
+      field('Amplitud', number(m.amp ?? 0, v => ctx.editUI('motion', a => { a.motion[i].amp = v; }), { step: 0.5 })),
+      m.type === 'wobble'
+        ? field('Sostener', number(m.hold ?? 8, v => ctx.editUI('motion', a => { a.motion[i].hold = Math.max(1, v | 0); }), { min: 1 }))
+        : field('Periodo', number(m.period ?? 64, v => ctx.editUI('motion', a => { a.motion[i].period = v; }), { step: 1 })),
+      m.type === 'wobble' ? null
+        : field('Fase', number(m.phase ?? 0, v => ctx.editUI('motion', a => { a.motion[i].phase = v; }), { step: 15 })),
+    ]),
+  ]));
+
+  return h('section.block', {}, [
+    h('h3', { text: 'Vaivén' }),
+    ...rows,
+    button('+ Añadir vaivén', () => ctx.edit(null, a => {
+      a.motion = (a.motion || []).concat([{ type: 'sine', axis: 'y', amp: 2, period: 64 }]);
+    })),
+  ]);
+}
+
+function cycleNote(actor, scene) {
+  const cycle = actorCycle(actor);
+  const ok = scene.loop_frames % cycle === 0;
+  return h('p.note' + (ok ? '.ok' : '.warn'), {
+    text: ok
+      ? `ciclo de ${cycle} fotogramas · encaja ${scene.loop_frames / cycle} veces en el bucle`
+      : `ciclo de ${cycle} fotogramas · no divide ${scene.loop_frames}: saltará al reiniciar`,
+  });
+}
+
+// ------------------------------------------------------------------- entry --
+
+export function renderInspector(container, ctx) {
+  clear(container);
+  const { store, selection } = ctx;
+  const scene = store.scene;
+
+  if (selection.kind === 'scene') {
+    container.append(
+      h('h2', { text: 'Escena' }),
+      ...fieldsFor(SCENE_FIELDS, scene, ctx, (k, v) => ctx.editScene(k, v)),
+      h('p.note', { text: `vista: ${Math.ceil(scene.canvas[0] / scene.zoom)}×${Math.ceil(scene.canvas[1] / scene.zoom)} px · salida ${scene.canvas[0]}×${scene.canvas[1]} · ${(scene.loop_frames / scene.fps).toFixed(2)} s` }),
+    );
+    return;
+  }
+
+  const isLayer = selection.kind === 'layer';
+  const list = isLayer ? scene.layers : scene.actors;
+  const obj = list[selection.index];
+  if (!obj) {
+    container.append(h('p.note', { text: 'nada seleccionado' }));
+    return;
+  }
+
+  const onSet = (key, value) => ctx.editUI(key, o => { o[key] = value; });
+  const specs = isLayer ? LAYER_FIELDS : ACTOR_FIELDS;
+
+  container.append(
+    h('div.row.between', {}, [
+      h('h2', { text: isLayer ? 'Capa' : 'Actor' }),
+      h('div.row.gap', {}, [
+        button('Duplicar', () => ctx.duplicate(), 'slim'),
+        button('Eliminar', () => ctx.remove(), 'slim danger'),
+      ]),
+    ]),
+    ...fieldsFor(specs, obj, ctx, onSet),
+  );
+
+  if (!isLayer) {
+    container.append(cycleNote(obj, scene), positionBlock(obj, ctx), motionBlock(obj, ctx));
+  } else {
+    const img = ctx.resolve(obj.sprite);
+    const period = obj.tile_period || (img ? img.naturalWidth : 0);
+    const travel = (obj.speed || 0) * scene.loop_frames;
+    const ok = !period || travel % period === 0;
+    container.append(h('p.note' + (ok ? '.ok' : '.warn'), {
+      text: period
+        ? `recorre ${travel} px en el bucle sobre un periodo de ${period} px` +
+          (ok ? ' · cierra sin costura' : ' · no cierra: dará un salto')
+        : 'imagen sin cargar',
+    }));
+  }
+}
