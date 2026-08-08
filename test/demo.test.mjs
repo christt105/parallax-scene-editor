@@ -42,7 +42,7 @@ test('the layers are ordered back to front by how fast they scroll', () => {
   const speeds = byDepth.map(l => l.speed);
   for (let i = 1; i < speeds.length; i++) {
     assert.ok(speeds[i] > speeds[i - 1],
-      `«${byDepth[i].name}» is nearer than «${byDepth[i - 1].name}» but not faster ` +
+      `“${byDepth[i].name}” is nearer than “${byDepth[i - 1].name}” but not faster ` +
       `(${speeds[i - 1]} → ${speeds[i]})`);
   }
 });
@@ -68,7 +68,7 @@ test('nothing pops: an actor that jumps at the wrap does it off screen', () => {
     if (moved <= 2) continue;                       // it barely moves: no pop to hide
     for (const [label, b] of [[`f${last}`, end], ['f0', start]]) {
       assert.ok(b.right <= 0 || b.left >= vw,
-        `«${a.name}» jumps ${moved} px at the wrap while visible at ${label} ` +
+        `“${a.name}” jumps ${moved} px at the wrap while visible at ${label} ` +
         `(${b.left}…${b.right} inside 0…${vw})`);
     }
   }
@@ -81,7 +81,7 @@ test('an actor with keys never lurches in the middle of the loop either', () => 
       const [x0, y0] = actorPos(a, f, scene.loop_frames);
       const [x1, y1] = actorPos(a, f + 1, scene.loop_frames);
       const step = Math.hypot(x1 - x0, y1 - y0);
-      assert.ok(step < 16, `«${a.name}» moves ${step.toFixed(1)} px between f${f} and f${f + 1}`);
+      assert.ok(step < 16, `“${a.name}” moves ${step.toFixed(1)} px between f${f} and f${f + 1}`);
     }
   }
 });

@@ -53,7 +53,7 @@ app.relink = () => {
   app.store.commit(null, scene => applyRelink(scene, plan));
   const left = app.missingCount();
   say(plan.kind === 'prefix'
-    ? `paths repaired: the asset root is now «${plan.prefix}»`
+    ? `paths repaired: the asset root is now “${plan.prefix}”`
     : `${plan.fixes.length} path(s) repaired${left ? `, ${left} still unresolved` : ''}`,
     left ? 'err' : 'ok');
   markPanels();
@@ -142,7 +142,7 @@ function syncSaveState() {
     cls += ' muted';
   } else if (disk.state === ERROR) {
     text = `autosave stopped: ${disk.error?.message || 'the write failed'}`;
-    title = 'tick «auto» again to retry';
+    title = 'tick “auto” again to retry';
     cls += ' bad';
   } else if (!disk.enabled) {
     text = app.store.dirty ? 'unsaved' : 'auto off';
@@ -545,7 +545,7 @@ async function openFolder(handle = null) {
     await app.assets.openFolder(handle);
     await storage.set('dir', app.assets.dirHandle);
     syncProjectLabel();
-    say(`folder «${app.assets.label}»: ${app.assets.count} files` +
+    say(`folder “${app.assets.label}”: ${app.assets.count} files` +
         (app.assets.truncated ? ' (cap reached: there are more unread)' : ''), 'ok');
     if (app.missingCount()) app.relink();
     const scenes = app.assets.sceneFiles();
@@ -1039,7 +1039,7 @@ function bindToolbar() {
 async function boot() {
   app.assets = new AssetLibrary(() => { markPanels(); });
   // Repaint a sprite in Aseprite and it lands here on its own; the alternative
-  // was alt-tabbing back to press «recargar» after every single save.
+  // was alt-tabbing back to press “recargar” after every single save.
   app.assets.onReload = paths => {
     const names = paths.map(p => p.split('/').pop());
     say(`updated from disk: ${names.slice(0, 3).join(', ')}` +
@@ -1053,7 +1053,7 @@ async function boot() {
       if (state === SAVED) app.store.dirty = false;
       if (state === ERROR) {
         say(`could not save to ${app.scenePath}: ${app.disk.error?.message || ''} · ` +
-            'tick «auto» again or use Save', 'err');
+            'tick “auto” again or use Save', 'err');
       }
       syncSaveState();
     },
@@ -1090,7 +1090,7 @@ async function boot() {
     } else if (dir) {
       say(h('span', {}, [
         'session restored · ',
-        button(`reconnect «${dir.name}»`, () => openFolder(dir), 'slim'),
+        button(`reconnect “${dir.name}”`, () => openFolder(dir), 'slim'),
       ]));
     } else {
       say('session restored · reopen the folder to see the sprites');

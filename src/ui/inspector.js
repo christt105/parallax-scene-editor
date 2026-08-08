@@ -254,7 +254,7 @@ const num = v => String(Math.round(v * 10000) / 10000);
  *
  * `editScene` leaves the panel alone on purpose — rebuilding it mid-keystroke
  * pulls the caret out of the field. A button has no caret to protect, and a
- * panel still showing «no cierra» after you pressed the thing that fixes it is
+ * panel still showing “does not close” after you pressed the thing that fixes it is
  * the worst of both.
  */
 const applyScene = (ctx, key, value) => () => {
@@ -267,7 +267,7 @@ const applyScene = (ctx, key, value) => () => {
  *
  * Offered only while it is still a loop. The shortest length that suits
  * everything is a least common multiple, and one awkward number in the scene
- * sends it to five figures — «fix it with 2560 frames» is arithmetic, not
+ * sends it to five figures — “fix it with 2560 frames” is arithmetic, not
  * advice. Past four times what is set, it says the number and stops there.
  */
 function loopSuggestion(scene, ctx, lead, cls = 'slim') {
@@ -310,7 +310,7 @@ function loopBlock(scene, ctx) {
 }
 
 /**
- * The part that was missing: not «esto no cierra» but «pon esto».
+ * The part that was missing: not “this does not close” but “put this”.
  *
  * Both ways out are offered because they are different decisions. Changing the
  * speed moves one layer and leaves the rest of the scene alone; changing
@@ -432,7 +432,7 @@ export function renderInspector(container, ctx) {
 
   if (obj.sprite && !ctx.hasAsset(obj.sprite)) {
     container.append(h('p.note.warn', {}, [
-      `cannot find «${ctx.fullPath(obj.sprite)}» among the loaded files. `,
+      `cannot find “${ctx.fullPath(obj.sprite)}” among the loaded files. `,
       button('Repair paths', () => ctx.relink(), 'slim'),
     ]));
   }
