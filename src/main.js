@@ -1,7 +1,7 @@
 // Wiring: the app object every panel talks to, plus the project, file and
 // export plumbing around it.
 
-import { defaultScene, compact, cycleWarnings, ACTOR_DEFAULTS, LAYER_DEFAULTS, clone } from './scene.js';
+import { defaultScene, compact, loopWarnings, ACTOR_DEFAULTS, LAYER_DEFAULTS, clone } from './scene.js';
 import { Store } from './store.js';
 import { AssetLibrary, normPath, guessFrames } from './assets.js';
 import { planRelink, applyRelink, missingRefs, joinRoot, spriteRefs } from './relink.js';
@@ -35,6 +35,12 @@ app.fullPath = path => joinRoot(app.store.scene.sprite_root, path);
 app.hasAsset = path => app.assets.entries.has(normPath(app.fullPath(path)));
 app.missingCount = () => missingRefs(app.store.scene, [...app.assets.entries.keys()]).length;
 
+/** A layer's tiling period when it did not name one: the image's own width. */
+app.periodOf = layer => {
+  const img = app.resolve(layer.sprite);
+  return img ? img.naturalWidth : 0;
+};
+
 /** Point the scene's paths back at the files that are actually loaded. */
 app.relink = () => {
   const paths = [...app.assets.entries.keys()];
@@ -58,11 +64,13 @@ app.relink = () => {
  * loop-cycle warnings), so they can be replaced freely without stepping on
  * something the user's own action just reported.
  */
+let saidAt = 0;
 function say(msg, kind = '', auto = false) {
   const node = $('#status');
   clear(node);
   node.className = kind;
   node.dataset.auto = auto ? '1' : '0';
+  if (!auto) saidAt = performance.now();
   node.append(typeof msg === 'string' ? document.createTextNode(msg) : msg);
 }
 
@@ -919,8 +927,12 @@ function syncPanels() {
 
   const node = $('#status');
   const mine = node.dataset.auto === '1';
-  const warnings = cycleWarnings(app.store.scene);
-  if (warnings.length && (mine || !node.textContent)) say(warnings[0].text, 'err', true);
+  const warnings = loopWarnings(app.store.scene, app.periodOf);
+  // A reply to something the user just did gets a few seconds of the line to
+  // itself; after that a loop that will not close is the more useful news, and
+  // it used to sit behind the greeting for as long as the tab stayed open.
+  const free = mine || !node.textContent || performance.now() - saidAt > 4000;
+  if (warnings.length && free) say(warnings[0].text, 'err', true);
   else if (!warnings.length && mine) say('');
 }
 

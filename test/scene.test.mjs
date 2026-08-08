@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   defaultScene, normalize, compact, viewSize, worldOffset, actorCycle, cycleWarnings,
+  seamWarnings, loopWarnings,
 } from '../src/scene.js';
 
 test('normalize fills the gaps without touching the input', () => {
@@ -78,4 +79,62 @@ test('an empty scene is a valid scene', () => {
   assert.deepEqual(s.actors, []);
   assert.deepEqual(cycleWarnings(s), []);
   assert.deepEqual(normalize(compact(s)), s);
+});
+
+// -------------------------------------------------------------- seams --
+
+const withLayers = layers => normalize({ loop_frames: 128, layers });
+
+test('a layer that lands back on a tile boundary is fine', () => {
+  const s = withLayers([{ name: 'ground', sprite: 'g.png', speed: 2, tile_period: 256 }]);
+  assert.deepEqual(seamWarnings(s), []);
+});
+
+test('a layer that stops half a tile short is caught, with the size of the jump', () => {
+  const s = withLayers([{ name: 'hills', sprite: 'h.png', speed: 1, tile_period: 256 }]);
+  const [w] = seamWarnings(s);
+  assert.equal(w.layer.name, 'hills');
+  assert.equal(w.travel, 128);
+  assert.equal(w.off, 128);
+});
+
+test('the jump reported is the shorter way round', () => {
+  // 128 px into a 130 px tile is a 2 px hop back, not a 128 px lurch forward
+  const s = withLayers([{ name: 'trees', sprite: 't.png', speed: 1, tile_period: 130 }]);
+  const [w] = seamWarnings(s);
+  assert.equal(w.travel, 128);
+  assert.equal(w.off, 2);
+});
+
+test('a still, hidden or unrepeated layer has no seam to speak of', () => {
+  const s = withLayers([
+    { name: 'still', sprite: 'a.png', speed: 0, tile_period: 320 },
+    { name: 'hidden', sprite: 'b.png', speed: 1, tile_period: 256, visible: false },
+    { name: 'once', sprite: 'c.png', speed: 1, tile_period: 256, repeat: 'none' },
+  ]);
+  assert.deepEqual(seamWarnings(s), []);
+});
+
+test('a fractional speed is judged where the renderer actually draws it', () => {
+  // round(0.3 * 128) = 38, and 38 is not a whole number of 19 px tiles… it is
+  const s = withLayers([{ name: 'sky', sprite: 's.png', speed: 0.3, tile_period: 19 }]);
+  assert.deepEqual(seamWarnings(s), []);
+  const off = withLayers([{ name: 'sky', sprite: 's.png', speed: 0.3, tile_period: 20 }]);
+  assert.equal(seamWarnings(off)[0].travel, 38);
+});
+
+test('a layer with no period of its own borrows the image width', () => {
+  const s = withLayers([{ name: 'ground', sprite: 'g.png', speed: 1 }]);
+  assert.deepEqual(seamWarnings(s), [], 'unknown width: nothing to claim');
+  assert.equal(seamWarnings(s, () => 256).length, 1, 'a 128 px scroll over a 256 px image jumps');
+  assert.deepEqual(seamWarnings(s, () => 128), [], 'over a 128 px image it closes');
+});
+
+test('loopWarnings gathers both halves of the same mistake', () => {
+  const s = normalize({
+    loop_frames: 128,
+    layers: [{ name: 'hills', sprite: 'h.png', speed: 1, tile_period: 256 }],
+    actors: [{ name: 'walker', sprite: 'w.png', frames: 3, delay: 5 }],
+  });
+  assert.deepEqual(loopWarnings(s).map(w => (w.layer || w.actor).name), ['hills', 'walker']);
 });
