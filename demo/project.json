@@ -1,0 +1,16 @@
+{
+  "name": "demo",
+  "scene": "scene.json",
+  "files": [
+    "scene.json",
+    "assets/layers/sky.png",
+    "assets/layers/hills_far.png",
+    "assets/layers/hills_near.png",
+    "assets/layers/trees.png",
+    "assets/layers/ground.png",
+    "assets/layers/grass_front.png",
+    "assets/sprites/walker.png",
+    "assets/sprites/bird.png",
+    "assets/sprites/cloud.png"
+  ]
+}
