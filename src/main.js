@@ -4,12 +4,14 @@
 import { defaultScene, compact, cycleWarnings, ACTOR_DEFAULTS, LAYER_DEFAULTS, clone } from './scene.js';
 import { Store } from './store.js';
 import { AssetLibrary, normPath, guessFrames } from './assets.js';
+import { planRelink, applyRelink, missingRefs, joinRoot, spriteRefs } from './relink.js';
 import { Stage } from './ui/stage.js';
 import { Timeline } from './ui/timeline.js';
 import { renderInspector } from './ui/inspector.js';
-import { h, $, clear, button } from './ui/dom.js';
+import { h, $, clear, button, place } from './ui/dom.js';
 import * as storage from './storage.js';
 import { exportGIF, exportPNGSequence, exportWebM, exportFramePNG, download, webmSupported, frameList } from './export/index.js';
+import { makeZip } from './export/zip.js';
 
 const DEMO = 'demo';
 
@@ -27,9 +29,28 @@ const app = {
 
 // --------------------------------------------------------------- helpers --
 
-const join = (root, path) => (root ? `${root.replace(/\/+$/, '')}/${path}` : path);
+app.resolve = path => (path ? app.assets.get(joinRoot(app.store.scene.sprite_root, path)) : null);
+app.fullPath = path => joinRoot(app.store.scene.sprite_root, path);
+app.hasAsset = path => app.assets.entries.has(normPath(app.fullPath(path)));
+app.missingCount = () => missingRefs(app.store.scene, [...app.assets.entries.keys()]).length;
 
-app.resolve = path => (path ? app.assets.get(join(app.store.scene.sprite_root, path)) : null);
+/** Point the scene's paths back at the files that are actually loaded. */
+app.relink = () => {
+  const paths = [...app.assets.entries.keys()];
+  const plan = planRelink(app.store.scene, paths);
+  if (plan.kind === 'none') {
+    return say(plan.missing
+      ? `no encuentro dónde están ${plan.missing} de las imágenes: cárgalas o elígelas a mano`
+      : 'todas las imágenes de la escena están localizadas', plan.missing ? 'err' : 'ok');
+  }
+  app.store.commit(null, scene => applyRelink(scene, plan));
+  const left = app.missingCount();
+  say(plan.kind === 'prefix'
+    ? `rutas reparadas: la raíz de assets pasa a «${plan.prefix}»`
+    : `${plan.fixes.length} ruta(s) reparadas${left ? `, quedan ${left} sin resolver` : ''}`,
+    left ? 'err' : 'ok');
+  markPanels();
+};
 
 /**
  * The status line. `auto` marks messages the editor writes on its own (the
@@ -87,7 +108,11 @@ app.setFrame = f => {
   $('#scrub').value = app.frame;
   syncFrameLabel();
   app.timeline.syncPlayhead();
-  markPanels();
+  // Playback moves the frame sixty times a second. Rebuilding the panels along
+  // with it would throw away the row you are reaching for and the field you are
+  // typing in, so while it plays only the three things above move; the rest
+  // catches up as soon as it is paused.
+  if (!app.playing) markPanels();
 };
 
 app.pause = () => { app.playing = false; syncPlayButton(); };
@@ -121,6 +146,7 @@ app.editUI = (label, fn) => {
 
 app.editScene = (key, value) => {
   app.store.commit(`scene:${key}`, scene => { scene[key] = value; });
+  app.suppressInspector = true;   // typed in the panel: leave the caret alone
   if (key === 'loop_frames') {
     $('#scrub').max = Math.max(0, app.store.scene.loop_frames - 1);
     app.setFrame(Math.min(app.frame, app.store.scene.loop_frames - 1));
@@ -337,11 +363,46 @@ function assetCard(path, onclick) {
   // Asking for the image also starts loading it; when it lands the library
   // fires onChange and the grid is drawn again with the thumbnail in place.
   const img = app.assets.get(path);
-  const node = h('div.asset', { onclick: () => onclick(path), title: path }, [
-    img ? h('img', { src: img.src, alt: '' }) : h('img', { alt: '' }),
+  return h('div.asset', {
+    onclick: () => onclick(path),
+    title: path,
+    onpointerenter: e => showPreview(path, e),
+    onpointerleave: hidePreview,
+  }, [
+    // draggable images would start a native file drag that the window's own
+    // drop handler then treats as somebody loading a new project
+    h('img', { src: img ? img.src : '', alt: '', draggable: false }),
     h('span', { text: path }),
   ]);
-  return node;
+}
+
+// -------------------------------------------------------- hover preview --
+
+let previewFor = null;
+
+function showPreview(path, ev) {
+  const img = app.assets.get(path);
+  const box = $('#asset-preview');
+  previewFor = path;
+  if (!img) { box.hidden = true; return; }   // still loading; the next hover shows it
+
+  const w = img.naturalWidth, hgt = img.naturalHeight;
+  // blow small sprites up by a whole number so the pixels stay square
+  const scale = Math.max(1, Math.floor(Math.min(360 / w, 300 / hgt)));
+  clear(box);
+  box.append(
+    h('img', { src: img.src, draggable: false,
+               style: { width: `${Math.min(360, w * scale)}px` } }),
+    h('span.preview-name', { text: path }),
+    h('span.preview-size', { text: `${w} × ${hgt} px` }),
+  );
+  box.hidden = false;
+  place(box, ev.clientX + 18, ev.clientY + 18);
+}
+
+function hidePreview() {
+  previewFor = null;
+  $('#asset-preview').hidden = true;
 }
 
 let assetRenderQueued = false;
@@ -351,13 +412,18 @@ function scheduleAssetRender() {
   setTimeout(() => { assetRenderQueued = false; renderAssets(); }, 180);
 }
 
+const ASSET_PAGE = 200;
+
 function renderAssets() {
   const list = $('#asset-list');
   const filter = $('#asset-filter').value.trim();
   clear(list);
   const paths = app.assets.paths(filter).filter(p => !p.endsWith('.json'));
   $('#asset-empty').hidden = paths.length > 0;
-  for (const path of paths.slice(0, 400)) {
+  const note = $('#asset-count');
+  note.hidden = paths.length <= ASSET_PAGE;
+  note.textContent = `mostrando ${ASSET_PAGE} de ${paths.length} · escribe arriba para acotar`;
+  for (const path of paths.slice(0, ASSET_PAGE)) {
     list.append(assetCard(path, p => {
       if (app.selection.kind !== 'scene') {
         const root = app.store.scene.sprite_root
@@ -407,7 +473,9 @@ async function openFolder(handle = null) {
     await app.assets.openFolder(handle);
     await storage.set('dir', app.assets.dirHandle);
     syncProjectLabel();
-    say(`carpeta «${app.assets.label}»: ${app.assets.count} archivos`, 'ok');
+    say(`carpeta «${app.assets.label}»: ${app.assets.count} archivos` +
+        (app.assets.truncated ? ' (tope alcanzado: hay más sin leer)' : ''), 'ok');
+    if (app.missingCount()) app.relink();
     const scenes = app.assets.sceneFiles();
     if (scenes.length && !app.scenePath) offerScenes(scenes);
   } catch (e) {
@@ -445,6 +513,9 @@ async function loadScene(path) {
     app.setFrame(0);
     app.stage.layout();
     say(`abierta ${path}`, 'ok');
+    // a scene saved next to its sprites and a folder opened higher up disagree
+    // about where everything is; this is the moment to reconcile them
+    if (app.missingCount()) app.relink();
   } catch (e) {
     say(`JSON inválido en ${path}: ${e.message}`, 'err');
   }
@@ -470,6 +541,35 @@ async function saveScene() {
   download(new Blob([text], { type: 'application/json' }), `${name}.json`);
   app.store.dirty = false;
   say('descargado (abre una carpeta para guardar en el disco)', 'ok');
+}
+
+/**
+ * Everything the scene needs, and nothing else, in one zip: the JSON plus the
+ * images it actually points at, under a fixed `assets/` root. Unzip it anywhere
+ * and the paths resolve — which is also the shape to hand to someone else.
+ */
+async function packageScene(onProgress = () => {}) {
+  const scene = clone(compact(app.store.scene));
+  const refs = spriteRefs(app.store.scene);
+  const wanted = [...new Set(refs.map(r => r.el.sprite))];
+  const files = [];
+  const missing = [];
+
+  for (let i = 0; i < wanted.length; i++) {
+    const rel = wanted[i];
+    onProgress(i / (wanted.length + 1), `${i + 1}/${wanted.length}`);
+    const data = await app.assets.readBytes(app.fullPath(rel));
+    if (data) files.push({ name: `assets/${normPath(rel)}`, data });
+    else missing.push(rel);
+  }
+
+  scene.sprite_root = 'assets';
+  files.push({
+    name: 'scene.json',
+    data: new TextEncoder().encode(JSON.stringify(scene, null, 2)),
+  });
+  onProgress(1, 'comprimiendo');
+  return { blob: makeZip(files), count: files.length - 1, missing };
 }
 
 // ---------------------------------------------------------------- export --
@@ -538,6 +638,19 @@ function exportModal() {
           const blob = await exportFramePNG(scene, app.resolve, app.frame);
           download(blob, `${name}_f${app.frame}.png`);
         }),
+      ]),
+      h('div.export-card', {}, [
+        h('h3', { text: 'Empaquetar escena' }),
+        h('p', { text: 'El JSON con las imágenes que usa, y solo esas, bajo assets/. ' +
+                       'Se descomprime en cualquier sitio y las rutas siguen valiendo.' }),
+        button('Empaquetar (zip)', () => run('Empaquetando', async o => {
+          const res = await packageScene(o.onProgress);
+          if (res.missing.length) {
+            say(`empaquetada sin ${res.missing.length} imagen(es) que no encuentro: ` +
+                res.missing.slice(0, 3).join(', '), 'err');
+          }
+          return res;
+        }, `${name}_proyecto.zip`)),
       ]),
     ]),
     h('div.modal-actions', {}, [
@@ -672,13 +785,20 @@ function bindDrop() {
   const veil = $('#drop-veil');
   let hideTimer = null;
 
+  // A drag that started inside the page — an asset thumbnail, an outliner row —
+  // can still arrive at the window's drop handler carrying a File, and loading
+  // that one image as if it were a new project is not what anybody meant.
+  let internal = false;
+  addEventListener('dragstart', () => { internal = true; }, true);
+  addEventListener('dragend', () => { internal = false; }, true);
+
   // dragenter/dragleave fire once per element the pointer crosses, so counting
   // them drifts out of balance the moment one of them is missed. `dragover`
   // repeats for as long as the drag is over the window, so a short watchdog
   // says exactly when it stopped.
   const hide = () => { clearTimeout(hideTimer); hideTimer = null; veil.hidden = true; };
   addEventListener('dragover', e => {
-    if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
+    if (internal || ![...(e.dataTransfer?.types || [])].includes('Files')) return;
     e.preventDefault();
     veil.hidden = false;
     clearTimeout(hideTimer);
@@ -687,13 +807,18 @@ function bindDrop() {
   addEventListener('dragend', hide);
 
   addEventListener('drop', async e => {
-    e.preventDefault();
     hide();
+    if (internal) { internal = false; return; }
+    e.preventDefault();
+    const had = app.assets.count;
     const n = await app.assets.adoptDrop(e.dataTransfer);
     syncProjectLabel();
-    say(n ? `${n} archivos cargados (solo lectura)` : 'no encontré imágenes ahí', n ? 'ok' : 'err');
+    if (!n) return say('no encontré imágenes en lo que has soltado', 'err');
+    say(had ? `${n} archivo(s) añadidos a los ${had} que ya había`
+            : `${n} archivos cargados (solo lectura)`, 'ok');
+    if (app.missingCount()) app.relink();
     const scenes = app.assets.sceneFiles();
-    if (scenes.length) offerScenes(scenes);
+    if (!had && scenes.length) offerScenes(scenes);
   });
 }
 
