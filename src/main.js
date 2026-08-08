@@ -670,16 +670,25 @@ function nudge(dx, dy) {
 
 function bindDrop() {
   const veil = $('#drop-veil');
-  let depth = 0;
-  addEventListener('dragenter', e => {
-    if (![...e.dataTransfer.types].includes('Files')) return;
-    depth++; veil.hidden = false;
+  let hideTimer = null;
+
+  // dragenter/dragleave fire once per element the pointer crosses, so counting
+  // them drifts out of balance the moment one of them is missed. `dragover`
+  // repeats for as long as the drag is over the window, so a short watchdog
+  // says exactly when it stopped.
+  const hide = () => { clearTimeout(hideTimer); hideTimer = null; veil.hidden = true; };
+  addEventListener('dragover', e => {
+    if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
+    e.preventDefault();
+    veil.hidden = false;
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(hide, 220);
   });
-  addEventListener('dragover', e => e.preventDefault());
-  addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; veil.hidden = true; } });
+  addEventListener('dragend', hide);
+
   addEventListener('drop', async e => {
     e.preventDefault();
-    depth = 0; veil.hidden = true;
+    hide();
     const n = await app.assets.adoptDrop(e.dataTransfer);
     syncProjectLabel();
     say(n ? `${n} archivos cargados (solo lectura)` : 'no encontré imágenes ahí', n ? 'ok' : 'err');
