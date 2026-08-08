@@ -111,6 +111,11 @@ input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-
   padding: 2px 10px; font-size: 11px; max-width: 220px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* where the scene is going, in the corner of your eye: dim when it is nowhere
+   in particular, loud only when a change is not reaching the disk */
+.save-state:empty { display: none; }
+.save-state.muted { background: #1c2330; color: var(--dim); }
+.save-state.bad { background: #3a2430; color: var(--danger); }
 
 /* --------------------------------------------------------------- layout -- */
 

@@ -32,16 +32,39 @@ Al abrir la página se carga una escena de ejemplo. Para trabajar con lo tuyo:
 1. **Abrir carpeta…** y eliges la carpeta de tu proyecto. El editor lee todas
    las imágenes que hay dentro, a cualquier profundidad.
 2. Si en la carpeta hay archivos `.json`, te ofrece abrirlos como escena.
-3. **Guardar** escribe el JSON dentro de esa misma carpeta, en el disco.
+3. A partir de ahí **el archivo sigue al editor**: cada cambio se escribe en el
+   disco solo, unos cientos de milisegundos después de que pares de tocarlo.
 
 Abrir carpetas necesita la File System Access API: **Chrome, Edge, Opera o
 Brave**. En Firefox y Safari el botón carga los archivos en solo lectura y
 *Guardar* pasa a descargar el JSON.
 
-Pases lo que pases, la escena se autoguarda en el navegador (IndexedDB) en cada
-cambio. Si cierras la pestaña sin querer, al volver está donde la dejaste; solo
-tendrás que volver a dar permiso sobre la carpeta, que es algo que el navegador
-no deja automatizar.
+### Trabajar sobre el disco
+
+La pastilla que hay junto a *Guardar* dice en todo momento a dónde va lo que
+haces:
+
+| | |
+|---|---|
+| `↳ escenas/nivel.json` | cada cambio acaba ahí |
+| `guardando …` | hay una escritura en camino |
+| `sin archivo · pulsa Guardar` | hay carpeta pero la escena todavía no tiene archivo |
+| `solo en el navegador` | no hay carpeta con permiso de escritura |
+
+El editor **no inventa archivos**: solo escribe sobre uno que hayas abierto de
+la carpeta o creado con *Guardar*. Elegir una carpeta para mirarla no es
+permiso para llenarla de JSON, así que la primera vez hay que decirle el nombre;
+de ahí en adelante no vuelves a pulsar nada.
+
+La casilla **auto** lo desactiva si prefieres guardar tú, con <kbd>Ctrl</kbd>+<kbd>S</kbd>.
+Si una escritura falla —permiso caducado, carpeta desmontada— el autoguardado
+se detiene y lo dice, en vez de reintentar en bucle contra un disco que ya no
+está; vuelves a marcar la casilla y sigue.
+
+Con todo esto, la escena se autoguarda **además** en el navegador (IndexedDB) en
+cada cambio. Si cierras la pestaña sin querer, al volver está donde la dejaste;
+solo tendrás que volver a dar permiso sobre la carpeta, que es algo que el
+navegador no deja automatizar.
 
 También puedes **arrastrar** una carpeta o unos archivos sueltos sobre la
 página. Eso funciona en todos los navegadores, pero es solo lectura. Soltar
@@ -218,6 +241,7 @@ src/
   store.js       escena + historial de deshacer
   assets.js      carpeta local, arrastrar-y-soltar, manifiesto remoto
   relink.js      cuadrar las rutas de la escena con los archivos cargados
+  autosave.js    escribir la escena en su archivo del disco, sola
   storage.js     autoguardado en IndexedDB
   main.js        el pegamento
   ui/            dom, stage, timeline, inspector
@@ -263,6 +287,12 @@ robe el cursor, que arrastrar una miniatura no se confunda con soltar archivos,
 que la vista previa aparezca y se vaya, que el GIF exportado empiece por
 `GIF89a`, que la escena sobreviva a recargar. Cada uno nació de un fallo que
 llegó a estar publicado.
+
+El autoguardado en disco se prueba en los dos sitios: la cola en `node --test`
+—un chaparrón de ediciones es *una* escritura, dos nunca se solapan, una que
+llega a mitad de otra no se pierde, un fallo la detiene en vez de reintentar— y
+el cableado en Playwright, con la escritura sustituida por un espía, porque el
+navegador no deja abrir el selector de carpetas desde un test.
 
 El truco que los hace fiables es `window.editor`: la aplicación expone su propio
 estado, así que un test comprueba `store.scene.actors[0].delay` en vez de

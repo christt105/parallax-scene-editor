@@ -10,6 +10,7 @@ import { Timeline } from './ui/timeline.js';
 import { renderInspector } from './ui/inspector.js';
 import { h, $, clear, button, place } from './ui/dom.js';
 import * as storage from './storage.js';
+import { DiskAutosave, SAVING, PENDING, SAVED, ERROR } from './autosave.js';
 import { exportGIF, exportPNGSequence, exportWebM, exportFramePNG, download, webmSupported, frameList } from './export/index.js';
 import { makeZip } from './export/zip.js';
 
@@ -90,7 +91,70 @@ function markPanels() {
       path: app.scenePath,
       source: app.assets.mode,
     });
+    requestDiskSave();
   }, 0);
+}
+
+// -------------------------------------------------------- disk autosave --
+
+const sceneText = () => JSON.stringify(compact(app.store.scene), null, 2);
+
+/**
+ * Mirror the edit onto the disk, when there is a disk to mirror it onto.
+ *
+ * Deliberately only ever writes a file the user already pointed at — one they
+ * opened from the folder, or one an explicit *Guardar* created. Inventing
+ * `scene.json` inside somebody's art folder because they nudged a sprite is a
+ * surprise, and a folder picked for reading is not consent to be written into.
+ */
+function requestDiskSave() {
+  if (app.disk.enabled && app.assets.canWrite && app.scenePath && app.store.dirty) {
+    // An edit that lands back on the bytes already written — undo, a value typed
+    // and retyped — is nothing to write, and nothing to warn about on the way out.
+    if (!app.disk.request(app.scenePath, sceneText()) && app.disk.clean) {
+      app.store.dirty = false;
+    }
+  }
+  syncSaveState();
+}
+
+function syncSaveState() {
+  const pill = $('#save-state');
+  const chk = $('#chk-autosave');
+  const disk = app.disk;
+  chk.checked = disk.enabled;
+  chk.disabled = !app.assets.canWrite;
+
+  let text, cls = 'pill save-state', title = '';
+  if (!app.assets.canWrite) {
+    text = 'solo en el navegador';
+    title = app.assets.count
+      ? 'estos archivos son de solo lectura; abre una carpeta para escribir en el disco'
+      : 'abre una carpeta para que la escena se guarde en el disco';
+    cls += ' muted';
+  } else if (disk.state === ERROR) {
+    text = `autoguardado detenido: ${disk.error?.message || 'no se pudo escribir'}`;
+    title = 'vuelve a marcar «auto» para reintentar';
+    cls += ' bad';
+  } else if (!disk.enabled) {
+    text = app.store.dirty ? 'sin guardar' : 'auto desactivado';
+    title = 'el autoguardado en disco está desactivado; Ctrl+S guarda';
+    cls += app.store.dirty ? ' bad' : ' muted';
+  } else if (!app.scenePath) {
+    text = 'sin archivo · pulsa Guardar';
+    title = 'la escena aún no tiene archivo en la carpeta; al guardarla una vez, ' +
+            'el resto de cambios van solos';
+    cls += ' bad';
+  } else if (disk.state === SAVING || disk.state === PENDING) {
+    text = `guardando ${app.scenePath}…`;
+    cls += ' muted';
+  } else {
+    text = `↳ ${app.scenePath}`;
+    title = `cada cambio se escribe en ${app.assets.label}/${app.scenePath}`;
+  }
+  pill.className = cls;
+  pill.textContent = text;
+  pill.title = title;
 }
 
 // ------------------------------------------------------------- app verbs --
@@ -478,6 +542,11 @@ async function openFolder(handle = null) {
     if (app.missingCount()) app.relink();
     const scenes = app.assets.sceneFiles();
     if (scenes.length && !app.scenePath) offerScenes(scenes);
+    else if (app.scenePath) {
+      // Reconnecting to the folder the session came from: the scene in the tab
+      // is the newer of the two, so let it flow back down to its file.
+      requestDiskSave();
+    }
   } catch (e) {
     say(e.message || 'no se pudo abrir la carpeta', 'err');
   }
@@ -490,6 +559,7 @@ function syncProjectLabel() {
     ? `${app.assets.label} · ${app.assets.count} archivos${app.assets.canWrite ? '' : ' (solo lectura)'}`
     : '';
   $('#btn-save').textContent = app.assets.canWrite ? 'Guardar' : 'Descargar';
+  syncSaveState();
 }
 
 function offerScenes(scenes) {
@@ -508,6 +578,10 @@ async function loadScene(path) {
     const data = JSON.parse(text);
     app.store.replace(data);
     app.scenePath = path;
+    app.store.dirty = false;
+    // What we would write for this scene is now what the file holds, near
+    // enough: no edit yet, so nothing goes back to disk until there is one.
+    app.disk.seed(path, sceneText());
     $('#scene-name').value = (data.name || path.split('/').pop().replace(/\.json$/, ''));
     app.select('scene');
     app.setFrame(0);
@@ -524,7 +598,7 @@ async function loadScene(path) {
 async function saveScene() {
   const name = ($('#scene-name').value || 'scene').replace(/[^A-Za-z0-9_-]/g, '');
   app.store.commit(null, s => { s.name = name; });
-  const text = JSON.stringify(compact(app.store.scene), null, 2);
+  const text = sceneText();
   if (app.assets.canWrite) {
     const dir = app.scenePath && app.scenePath.includes('/')
       ? app.scenePath.slice(0, app.scenePath.lastIndexOf('/') + 1) : '';
@@ -533,13 +607,18 @@ async function saveScene() {
       await app.assets.writeText(path, text);
       app.scenePath = path;
       app.store.dirty = false;
-      return say(`guardado en ${app.assets.label}/${path}`, 'ok');
+      app.disk.seed(path, text);      // and from here on it keeps itself up to date
+      renderAssets();
+      say(`guardado en ${app.assets.label}/${path}` +
+          (app.disk.enabled ? ' · los siguientes cambios se guardan solos' : ''), 'ok');
+      return;
     } catch (e) {
       return say(`no se pudo escribir: ${e.message}`, 'err');
     }
   }
   download(new Blob([text], { type: 'application/json' }), `${name}.json`);
   app.store.dirty = false;
+  syncSaveState();
   say('descargado (abre una carpeta para guardar en el disco)', 'ok');
 }
 
@@ -888,6 +967,8 @@ function bindToolbar() {
     if (app.store.dirty && !confirm('Hay cambios sin guardar. ¿Empezar una escena nueva?')) return;
     app.store.replace(defaultScene());
     app.scenePath = null;
+    app.store.dirty = false;
+    app.disk.reset();
     app.select('scene');
     app.setFrame(0);
     app.stage.layout();
@@ -914,13 +995,49 @@ function bindToolbar() {
     app.store.commit(null, s => { s.name = $('#scene-name').value; });
   });
 
+  $('#chk-autosave').onchange = e => {
+    app.disk.enable(e.target.checked);
+    storage.set('autosave-disk', e.target.checked);
+    if (e.target.checked) {
+      requestDiskSave();
+      app.disk.flush();
+      say(app.scenePath
+        ? `autoguardado en ${app.assets.label}/${app.scenePath}`
+        : 'autoguardado activado · guarda una vez para elegir el archivo', 'ok');
+    } else {
+      syncSaveState();
+      say('autoguardado en disco desactivado · Ctrl+S para guardar', 'ok');
+    }
+  };
+
+  // A tab going away — closed, hidden, switched — is the last chance to get the
+  // queued write out; `beforeunload` is too late to await anything.
+  addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') app.disk.flush();
+  });
+
   addEventListener('beforeunload', e => {
+    app.disk.flush();
+    // `dirty` is cleared the moment the disk catches up, so with autosave on
+    // and nothing in flight this stops asking at all — which is the point.
     if (app.store.dirty && app.assets.canWrite) { e.preventDefault(); e.returnValue = ''; }
   });
 }
 
 async function boot() {
   app.assets = new AssetLibrary(() => { markPanels(); });
+  app.disk = new DiskAutosave({
+    write: (path, text) => app.assets.writeText(path, text),
+    onState: state => {
+      // The disk is now the authority again, so nothing is pending anywhere.
+      if (state === SAVED) app.store.dirty = false;
+      if (state === ERROR) {
+        say(`no se pudo guardar en ${app.scenePath}: ${app.disk.error?.message || ''} · ` +
+            'vuelve a marcar «auto» o usa Guardar', 'err');
+      }
+      syncSaveState();
+    },
+  });
   app.stage = new Stage($('#stage'), app);
   app.timeline = new Timeline($('#timeline'), app);
   app.store.subscribe(markPanels);
@@ -936,6 +1053,7 @@ async function boot() {
 
   const saved = await storage.get('autosave');
   const dir = await storage.get('dir');
+  app.disk.enable((await storage.get('autosave-disk')) !== false);   // on unless turned off
 
   if (saved?.scene) {
     app.store.replace(saved.scene, { history: false });
@@ -971,6 +1089,7 @@ async function boot() {
     }
   }
   syncProjectLabel();
+  syncSaveState();
 
   $('#scrub').max = Math.max(0, app.store.scene.loop_frames - 1);
   app.stage.layout();
