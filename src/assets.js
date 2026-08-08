@@ -7,7 +7,10 @@
 //   url     — a manifest of paths fetched over HTTP; used for the bundled demo.
 
 const IMAGE_RE = /\.(png|gif|jpe?g|webp|bmp)$/i;
-const MAX_FILES = 4000;
+const MAX_FILES = 30000;
+
+// Folders that are never someone's artwork and are often enormous.
+const SKIP_DIRS = new Set(['node_modules', '__pycache__', 'venv', '.venv', 'target']);
 
 export const normPath = p => String(p).replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\/+/, '');
 
@@ -72,6 +75,7 @@ export class AssetLibrary {
     this.refresh();
     this.mode = mode;
     this.label = label;
+    this.truncated = false;
     this.entries.clear();
   }
 
@@ -84,20 +88,34 @@ export class AssetLibrary {
     if (!ok) throw new Error('permiso denegado sobre la carpeta');
     this._reset('folder', dir.name);
     this.dirHandle = dir;
-    await this._scan(dir, '');
+    await this._scan(dir);
     this.onChange();
     return dir;
   }
 
-  async _scan(dir, prefix, depth = 0) {
-    if (depth > 8 || this.entries.size > MAX_FILES) return;
-    for await (const [name, handle] of dir.entries()) {
-      if (name.startsWith('.')) continue;
-      const path = prefix ? `${prefix}/${name}` : name;
-      if (handle.kind === 'directory') await this._scan(handle, path, depth + 1);
-      else if (IMAGE_RE.test(name)) this.entries.set(path, { handle });
-      else if (name.endsWith('.json')) this.entries.set(path, { handle, json: true });
-      if (this.entries.size > MAX_FILES) return;
+  /**
+   * Breadth first, on purpose.
+   *
+   * A depth-first walk spends its whole budget on whichever subtree happens to
+   * sort first — one vendored dependency with a few thousand images and the
+   * sprites you actually came for are never reached. Level by level, the files
+   * next to the scene arrive first and the cap only ever bites the deep end.
+   */
+  async _scan(root) {
+    let level = [[root, '']];
+    for (let depth = 0; depth <= 10 && level.length; depth++) {
+      const next = [];
+      for (const [dir, prefix] of level) {
+        for await (const [name, handle] of dir.entries()) {
+          if (name.startsWith('.') || SKIP_DIRS.has(name)) continue;
+          const path = prefix ? `${prefix}/${name}` : name;
+          if (handle.kind === 'directory') next.push([handle, path]);
+          else if (IMAGE_RE.test(name)) this.entries.set(path, { handle });
+          else if (name.endsWith('.json')) this.entries.set(path, { handle, json: true });
+          if (this.entries.size >= MAX_FILES) { this.truncated = true; return; }
+        }
+      }
+      level = next;
     }
   }
 
@@ -135,20 +153,28 @@ export class AssetLibrary {
   }
 
   // --------------------------------------------------------------- drop --
+  /**
+   * Dropping files *adds* to what is loaded rather than replacing it. Throwing
+   * away an open project because one PNG landed on the window is not a trade
+   * anyone would take, and the same drop handler sees stray drags from inside
+   * the page.
+   */
   async adoptDrop(dataTransfer) {
+    const before = this.entries.size;
     const roots = [];
     for (const item of dataTransfer.items || []) {
       if (item.kind !== 'file') continue;
       const entry = item.webkitGetAsEntry?.();
       if (entry) roots.push(entry);
     }
+
     if (roots.length) {
-      this._reset('drop', roots.length === 1 ? roots[0].name : `${roots.length} elementos`);
+      if (!before) this._reset('drop', roots.length === 1 ? roots[0].name : `${roots.length} elementos`);
       for (const root of roots) await walkEntry(root, '', this.entries);
     } else {
       const files = [...(dataTransfer.files || [])];
       if (!files.length) return 0;
-      this._reset('drop', `${files.length} archivos`);
+      if (!before) this._reset('drop', `${files.length} archivos`);
       for (const f of files) {
         if (IMAGE_RE.test(f.name) || f.name.endsWith('.json')) {
           this.entries.set(normPath(f.name), { file: f, json: f.name.endsWith('.json') });
@@ -156,22 +182,39 @@ export class AssetLibrary {
       }
     }
     this.onChange();
-    return this.entries.size;
+    return this.entries.size - before;
   }
 
   adoptFiles(fileList) {
     const files = [...fileList];
     if (!files.length) return 0;
-    this._reset('drop', files[0].webkitRelativePath?.split('/')[0] || `${files.length} archivos`);
+    const before = this.entries.size;
+    const folder = files[0].webkitRelativePath?.split('/')[0];
+    if (!before || folder) {
+      this._reset('drop', folder || `${files.length} archivos`);
+    }
     for (const f of files) {
-      const rel = normPath(f.webkitRelativePath || f.name).split('/').slice(1).join('/')
-                  || normPath(f.name);
+      const rel = folder
+        ? normPath(f.webkitRelativePath).split('/').slice(1).join('/')
+        : normPath(f.name);
       if (IMAGE_RE.test(f.name) || f.name.endsWith('.json')) {
         this.entries.set(rel, { file: f, json: f.name.endsWith('.json') });
       }
     }
     this.onChange();
-    return this.entries.size;
+    return this.entries.size - (folder ? 0 : before);
+  }
+
+  /** Raw bytes of one asset, for packaging a scene up. */
+  async readBytes(path) {
+    const entry = this.entries.get(normPath(path));
+    if (!entry) return null;
+    if (entry.url) {
+      const res = await fetch(entry.url);
+      return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+    }
+    const file = entry.file || await entry.handle.getFile();
+    return new Uint8Array(await file.arrayBuffer());
   }
 
   // ---------------------------------------------------------------- url --

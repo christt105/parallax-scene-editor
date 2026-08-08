@@ -44,7 +44,31 @@ tendrás que volver a dar permiso sobre la carpeta, que es algo que el navegador
 no deja automatizar.
 
 También puedes **arrastrar** una carpeta o unos archivos sueltos sobre la
-página. Eso funciona en todos los navegadores, pero es solo lectura.
+página. Eso funciona en todos los navegadores, pero es solo lectura. Soltar
+archivos **añade** a lo que ya hay cargado, no lo reemplaza.
+
+### Dónde busca las imágenes
+
+Hay dos niveles y conviene tenerlos claros:
+
+```
+carpeta que abres/          ← la raíz de todo
+  sprites/x1/               ← "raíz de assets" (sprite_root), en las propiedades de la escena
+    pokemon/torchic.png     ← "sprite", lo que lleva cada capa y cada actor
+```
+
+La ruta final es `sprite_root + sprite`, siempre relativa a la carpeta que
+abriste. Así una escena se puede mover entera cambiando un solo campo.
+
+Cuando no cuadran —porque abriste la carpeta un nivel más arriba, o el JSON
+viene de otro sitio— el editor **no** te hace repicar veinte imágenes: te dice
+cuántas no encuentra y con *Reparar rutas* las busca por nombre entre lo
+cargado. Si a todas les falta la misma carpeta, que es lo normal, ajusta
+`sprite_root` y ya está; si están desperdigadas, arregla cada una. Lo intenta
+solo al abrir una escena o una carpeta.
+
+Y cuando quieras llevarte la escena a otro sitio, *Exportar → Empaquetar*
+te da un zip con el JSON y **solo las imágenes que usa**, bajo `assets/`.
 
 ## La escena
 
@@ -144,6 +168,9 @@ sprite pega un salto al reiniciar. El editor lo dice, con el número exacto.
 - **El camino de las claves** se dibuja sobre el lienzo, para ver la
   trayectoria completa sin darle al play.
 - **Papel cebolla** superpone los actores de los fotogramas vecinos.
+- **Pasar el ratón** por una imagen del panel de assets la enseña en grande, con
+  sus dimensiones: los sprites pequeños se amplían por un número entero para que
+  el píxel siga siendo cuadrado.
 
 | Atajo | |
 |---|---|
@@ -169,14 +196,18 @@ sprite pega un salto al reiniciar. El editor lo dice, con el número exacto.
 - **PNG (zip)** — un archivo por fotograma, para montarlo con ffmpeg o abrirlo
   en Aseprite.
 - **Fotograma actual** — un PNG suelto.
+- **Empaquetar** — zip con `scene.json` y las imágenes que usa la escena, bajo
+  `assets/`, para llevártela a otra máquina o dársela a alguien.
 
 *Quedarse con 1 de cada N* baja el número de fotogramas y sube la duración de
 cada uno, sin tocar la escena.
 
 ## Estructura
 
-Sin dependencias, sin *bundler*: son módulos ES que el navegador carga tal cual,
-que es también lo que hace que GitHub Pages pueda servirlo sin más.
+Sin dependencias ni *bundler* en lo que se sirve: son módulos ES que el
+navegador carga tal cual, que es también lo que hace que GitHub Pages pueda
+publicarlo sin compilar nada. Lo único que hay en `package.json` es Playwright,
+para los tests.
 
 ```
 index.html · app.css
@@ -186,6 +217,7 @@ src/
   render.js      dibujado en un canvas, a resolución de mundo
   store.js       escena + historial de deshacer
   assets.js      carpeta local, arrastrar-y-soltar, manifiesto remoto
+  relink.js      cuadrar las rutas de la escena con los archivos cargados
   storage.js     autoguardado en IndexedDB
   main.js        el pegamento
   ui/            dom, stage, timeline, inspector
@@ -212,7 +244,8 @@ uno porque los módulos ES no se cargan desde `file://`.
 ## Tests
 
 ```bash
-node --test
+node --test        # la lógica
+npx playwright test   # la interfaz, en un navegador de verdad
 ```
 
 Sin dependencias ni configuración: el ejecutor de Node, sobre los módulos que no
@@ -224,11 +257,17 @@ que el diccionario se llena a mitad de fotograma—, y del zip se comprueban las
 firmas, los desplazamientos del directorio central y un CRC-32 de valor
 publicado.
 
-Lo que **no** cubren es el cableado de la interfaz, que es justo donde apareció
-el primer fallo de verdad: una regla de CSS con un selector de id ganándole al
-`[hidden]` del navegador dejaba el velo de «suelta los archivos» tapando la
-página entera. Eso pide un navegador de verdad (Playwright) o un ojo humano, no
-`node --test`.
+Los de Playwright cubren lo otro, que es donde han salido todos los fallos de
+verdad: que nada invisible tape el lienzo, que escribir en el inspector no te
+robe el cursor, que arrastrar una miniatura no se confunda con soltar archivos,
+que la vista previa aparezca y se vaya, que el GIF exportado empiece por
+`GIF89a`, que la escena sobreviva a recargar. Cada uno nació de un fallo que
+llegó a estar publicado.
+
+El truco que los hace fiables es `window.editor`: la aplicación expone su propio
+estado, así que un test comprueba `store.scene.actors[0].delay` en vez de
+adivinar por el DOM. Y los campos del inspector llevan `data-field`, para que un
+test nombre el que quiere en lugar de contar `input`s y acertar por poco.
 
 ## Licencia
 

@@ -73,22 +73,42 @@ export function defaultScene() {
 
 /** Fill in everything the renderer relies on, without mutating the input. */
 export function normalize(input) {
-  const s = Object.assign(clone(DEFAULTS), clone(input || {}));
+  return normalizeInPlace(clone(input || {}));
+}
+
+const fillDefaults = (obj, defs) => {
+  for (const [k, v] of Object.entries(defs)) {
+    if (!(k in obj) || obj[k] === undefined) obj[k] = clone(v);
+  }
+  return obj;
+};
+
+/**
+ * The same rules, applied to the object you already have.
+ *
+ * Editing goes through here rather than through `normalize` so that a layer or
+ * an actor keeps its identity across an edit: the inspector holds a reference
+ * to the thing it is editing, and swapping it for a fresh clone on every
+ * keystroke is how a panel ends up writing into an object nobody is showing.
+ */
+export function normalizeInPlace(s) {
+  fillDefaults(s, DEFAULTS);
   s.format = FORMAT;
   s.canvas = [Math.max(1, s.canvas?.[0] | 0 || 640), Math.max(1, s.canvas?.[1] | 0 || 360)];
   s.zoom = Math.max(1, Math.round(s.zoom) || 1);
   s.loop_frames = Math.max(1, Math.round(s.loop_frames) || 1);
   s.fps = +s.fps > 0 ? +s.fps : 60;
-  s.layers = (s.layers || []).map(l => Object.assign(clone(LAYER_DEFAULTS), l));
-  s.actors = (s.actors || []).map(a => {
-    const actor = Object.assign(clone(ACTOR_DEFAULTS), a);
-    actor.frames = Math.max(1, actor.frames | 0 || 1);
-    actor.delay = Math.max(1, actor.delay | 0 || 1);
-    if (Array.isArray(actor.keys) && !actor.keys.length) actor.keys = null;
-    if (Array.isArray(actor.motion) && !actor.motion.length) actor.motion = null;
-    if (actor.keys) actor.keys = actor.keys.slice().sort((p, q) => p.f - q.f);
-    return actor;
-  });
+  if (!Array.isArray(s.layers)) s.layers = [];
+  if (!Array.isArray(s.actors)) s.actors = [];
+  for (const l of s.layers) fillDefaults(l, LAYER_DEFAULTS);
+  for (const a of s.actors) {
+    fillDefaults(a, ACTOR_DEFAULTS);
+    a.frames = Math.max(1, a.frames | 0 || 1);
+    a.delay = Math.max(1, a.delay | 0 || 1);
+    if (Array.isArray(a.keys) && !a.keys.length) a.keys = null;
+    if (Array.isArray(a.motion) && !a.motion.length) a.motion = null;
+    if (a.keys) a.keys.sort((p, q) => p.f - q.f);
+  }
   return s;
 }
 

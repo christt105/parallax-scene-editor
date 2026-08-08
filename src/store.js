@@ -5,7 +5,7 @@
 // subtly wrong. Consecutive edits with the same `label` coalesce, which is what
 // makes dragging a sprite one undo step instead of two hundred.
 
-import { normalize, clone } from './scene.js';
+import { normalize, normalizeInPlace, clone } from './scene.js';
 
 const LIMIT = 200;
 
@@ -35,7 +35,7 @@ export class Store {
     this.lastLabel = label;
     this.lastTime = now;
     const out = fn(this.scene);
-    this.scene = normalize(this.scene);
+    normalizeInPlace(this.scene);   // in place: references stay valid
     this.dirty = true;
     this.emit(label || 'change');
     return out;

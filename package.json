@@ -1,0 +1,14 @@
+{
+  "name": "parallax-scene-editor",
+  "private": true,
+  "type": "module",
+  "description": "Browser editor for looping parallax pixel-art scenes",
+  "scripts": {
+    "test": "node --test",
+    "test:e2e": "playwright test",
+    "serve": "python3 -m http.server 8000"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

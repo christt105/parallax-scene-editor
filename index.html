@@ -62,6 +62,7 @@
         <button id="btn-refresh-assets" class="link" title="Volver a leer los archivos del disco">recargar</button>
       </div>
       <input id="asset-filter" type="search" placeholder="filtrar…" spellcheck="false">
+      <p class="note" id="asset-count" hidden></p>
       <div id="asset-list" class="assets"></div>
       <p class="note" id="asset-empty">
         Abre una carpeta para usar tus propios sprites, o arrastra archivos aquí.
@@ -91,6 +92,7 @@
 </main>
 
 <div id="drop-veil" hidden><span>Suelta la carpeta o los archivos</span></div>
+<div id="asset-preview" hidden></div>
 
 <dialog id="modal">
   <div class="modal-head">

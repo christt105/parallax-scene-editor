@@ -58,6 +58,11 @@ const ACTOR_FIELDS = [
 function control(spec, obj, ctx, onSet) {
   const v = obj[spec.key];
   const set = value => onSet(spec.key, value);
+  // Controls made of two inputs have to read their sibling's value at the
+  // moment they are used, not at the moment they were drawn: the panel is
+  // deliberately not rebuilt between keystrokes, so a captured copy would go
+  // stale and typing a height would put the old width back.
+  const now = () => obj[spec.key];
 
   switch (spec.type) {
     case 'text':
@@ -98,16 +103,18 @@ function control(spec, obj, ctx, onSet) {
 
     case 'size':
       return h('div.row', {}, [
-        number(v[0], n => set([Math.max(1, n | 0), v[1]]), { min: 1 }),
+        number(v[0], n => set([Math.max(1, n | 0), now()[1]]), { min: 1 }),
         h('span.times', { text: '×' }),
-        number(v[1], n => set([v[0], Math.max(1, n | 0)]), { min: 1 }),
+        number(v[1], n => set([now()[0], Math.max(1, n | 0)]), { min: 1 }),
       ]);
 
     case 'grid':
       return h('div.row', {}, [
-        number(v ? v[0] : '', n => set(n > 0 ? [n, (v && v[1]) || 1] : null), { min: 1, placeholder: 'cols' }),
+        number(v ? v[0] : '', n => set(n > 0 ? [n, (now() && now()[1]) || 1] : null),
+               { min: 1, placeholder: 'cols' }),
         h('span.times', { text: '×' }),
-        number(v ? v[1] : '', n => set(n > 0 ? [(v && v[0]) || 1, n] : null), { min: 1, placeholder: 'filas' }),
+        number(v ? v[1] : '', n => set(n > 0 ? [(now() && now()[0]) || 1, n] : null),
+               { min: 1, placeholder: 'filas' }),
       ]);
 
     case 'order':
@@ -121,12 +128,15 @@ function control(spec, obj, ctx, onSet) {
       });
 
     case 'asset': {
-      const node = h('div.row', {}, [
-        h('input', { type: 'text', value: v || '', class: 'mono grow',
-                     oninput: e => set(e.target.value) }),
-        button('…', () => ctx.pickAsset(v, path => { set(path); ctx.refresh(); }), 'slim'),
+      const found = !v || ctx.resolve(v) || ctx.hasAsset(v);
+      const input = h('input', {
+        type: 'text', value: v || '', class: 'mono grow' + (found ? '' : ' missing'),
+        oninput: e => set(e.target.value),
+      });
+      return h('div.row', {}, [
+        input,
+        button('…', () => ctx.pickAsset(now(), path => { set(path); ctx.refresh(); }), 'slim'),
       ]);
-      return node;
     }
 
     default:
@@ -138,6 +148,9 @@ function fieldsFor(specs, obj, ctx, onSet) {
   return specs.map(spec => {
     const node = control(spec, obj, ctx, onSet);
     const row = field(spec.label, node, spec.hint);
+    // a stable hook, so tests and scripts name the field they mean instead of
+    // counting inputs and quietly landing on the wrong one
+    row.dataset.field = spec.key;
     if (spec.detect) {
       row.querySelector('.field-label').append(
         button('detectar', () => ctx.detectFrames(), 'link'));
@@ -250,8 +263,15 @@ export function renderInspector(container, ctx) {
   const scene = store.scene;
 
   if (selection.kind === 'scene') {
+    const missing = ctx.missingCount();
+    container.append(h('h2', { text: 'Escena' }));
+    if (missing) {
+      container.append(h('p.note.warn', {}, [
+        `${missing} imagen(es) de la escena no están entre los archivos cargados. `,
+        button('Reparar rutas', () => ctx.relink(), 'slim'),
+      ]));
+    }
     container.append(
-      h('h2', { text: 'Escena' }),
       ...fieldsFor(SCENE_FIELDS, scene, ctx, (k, v) => ctx.editScene(k, v)),
       h('p.note', { text: `vista: ${Math.ceil(scene.canvas[0] / scene.zoom)}×${Math.ceil(scene.canvas[1] / scene.zoom)} px · salida ${scene.canvas[0]}×${scene.canvas[1]} · ${(scene.loop_frames / scene.fps).toFixed(2)} s` }),
     );
@@ -277,8 +297,16 @@ export function renderInspector(container, ctx) {
         button('Eliminar', () => ctx.remove(), 'slim danger'),
       ]),
     ]),
-    ...fieldsFor(specs, obj, ctx, onSet),
   );
+
+  if (obj.sprite && !ctx.hasAsset(obj.sprite)) {
+    container.append(h('p.note.warn', {}, [
+      `no encuentro «${ctx.fullPath(obj.sprite)}» entre los archivos cargados. `,
+      button('Reparar rutas', () => ctx.relink(), 'slim'),
+    ]));
+  }
+
+  container.append(...fieldsFor(specs, obj, ctx, onSet));
 
   if (!isLayer) {
     container.append(cycleNote(obj, scene), positionBlock(obj, ctx), motionBlock(obj, ctx));
@@ -291,7 +319,7 @@ export function renderInspector(container, ctx) {
       text: period
         ? `recorre ${travel} px en el bucle sobre un periodo de ${period} px` +
           (ok ? ' · cierra sin costura' : ' · no cierra: dará un salto')
-        : 'imagen sin cargar',
+        : 'esperando a que cargue la imagen para saber su periodo',
     }));
   }
 }
