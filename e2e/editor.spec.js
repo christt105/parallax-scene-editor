@@ -64,6 +64,51 @@ test('the demo loop closes: the last frame hands back to the first', async ({ pa
   expect(diff, 'frame 0 and frame loop_frames must be the same picture').toBe(0);
 });
 
+test('a loop that does not close offers the numbers that would close it', async ({ page }) => {
+  await boot(page);
+
+  // a speed that feels right and is not: 1.5 × 256 frames is a tile and a half
+  await page.evaluate(() => {
+    const a = window.editor;
+    a.editIndex('layer', 2, null, l => { l.speed = 1.5; });
+    a.select('layer', 2);
+  });
+  const panel = page.locator('#right');
+  await expect(panel.locator('.note.warn')).toContainText('no cierra');
+
+  const fix = panel.locator('.fix button', { hasText: 'velocidad 2' });
+  await expect(fix).toBeVisible();
+  await fix.click();
+
+  expect(await page.evaluate(() => window.editor.store.scene.layers[2].speed)).toBe(2);
+  // the panel must redraw: a note still reading «no cierra» after pressing the
+  // button that fixes it is worse than no button at all
+  await expect(panel.locator('.note.ok').first()).toContainText('cierra sin costura');
+  await expect(panel.locator('.fix')).toHaveCount(0);
+});
+
+test('an actor whose cels will never divide the loop is offered the order trick', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const a = window.editor;
+    a.editIndex('actor', 0, null, x => { x.frames = 3; x.delay = 5; });
+    a.select('actor', 0);
+  });
+  const panel = page.locator('#right');
+  const fix = panel.locator('.fix button', { hasText: 'orden 0,1,2,1' });
+  await expect(fix).toBeVisible();
+  await fix.click();
+
+  const after = await page.evaluate(() => {
+    const a = window.editor.store.scene.actors[0];
+    return { order: a.order, delay: a.delay, loop: window.editor.store.scene.loop_frames };
+  });
+  expect(after.order).toEqual([0, 1, 2, 1]);
+  // the order alone would still not divide the loop; the delay has to come too
+  expect(after.loop % (after.order.length * after.delay)).toBe(0);
+  await expect(panel.locator('.note.ok').first()).toContainText('encaja');
+});
+
 test('nothing invisible is sitting on top of the page', async ({ page }) => {
   await boot(page);
   // the bug: #drop-veil kept display:flex over the whole viewport, so every

@@ -237,11 +237,19 @@ h3 { font-size: 12px; margin: 0 0 4px; color: var(--ink); font-weight: 600; }
 .row { display: flex; gap: 6px; align-items: center; }
 .row.gap { gap: 6px; margin-top: 6px; }
 .row.between { justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.row.wrap { flex-wrap: wrap; }
 .row > .field { flex: 1; margin-bottom: 0; }
 .grow { flex: 1; }
 .times { color: var(--dim); }
 .range-value { color: var(--dim); font-size: 11px; width: 3.2em; text-align: right; }
 .toggle { display: flex; align-items: center; gap: 6px; }
+
+/* the "here is what to put" box: the arithmetic, then the buttons that do it */
+.fix {
+  border: 1px solid var(--line); border-left: 2px solid var(--accent);
+  border-radius: 5px; padding: 6px 8px 8px; margin-top: 8px;
+}
+.fix .note:first-child { margin-top: 0; }
 
 .block { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
 .motion { border: 1px solid var(--line); border-radius: 5px; padding: 6px; margin-bottom: 6px; }

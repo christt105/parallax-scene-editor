@@ -156,6 +156,38 @@ bucle 256 fotogramas, la velocidad tiene que ser entera, y la capa más lenta
 recorre una baldosa entera por bucle. Para que el fondo vaya *despacio*, o el
 bucle dura más segundos, o esa capa se dibuja más estrecha.
 
+### No hace falta que hagas la cuenta
+
+Saber que algo no cierra no sirve de nada si no sabes qué poner, y la regla
+tiene solución exacta, así que el editor la resuelve por ti. Cuando una capa no
+cierra, su panel dice de cuánto en cuánto va la velocidad —`periodo ÷
+fotogramas`, es decir, una baldosa por bucle— y te da **las dos que sí valen**,
+la de debajo y la de encima, con un botón cada una:
+
+```
+recorre 384 px en el bucle sobre un periodo de 256 px · no cierra: saltará 128 px
+en 256 fotogramas la capa tiene que recorrer un número entero de baldosas de
+256 px, así que la velocidad va de 1 en 1:
+     [ velocidad 1 · 1 baldosa ]  [ velocidad 2 · 2 baldosas ]
+o, dejando todas las velocidades como están, alargar el bucle:
+     [ bucle de 512 fotogramas · 21.33 s ]
+```
+
+Son dos decisiones distintas y por eso están las dos: cambiar la velocidad mueve
+esa capa y deja el resto en paz; alargar el bucle **no cambia ni un px por
+fotograma** —nada se mueve más deprisa— pero dura más. Desde las propiedades de
+la escena, ese segundo botón arregla todo lo que no cierre de una vez.
+
+Con los actores igual: te ofrece los retardos cuyo ciclo divide el bucle. Y
+cuando el número de cels no divide el bucle *pase lo que pase* —tres cels en un
+bucle de 256 no hay retardo que lo arregle— propone el orden de ida y vuelta
+`0,1,2,1`, que convierte tres cels en cuatro, con el retardo que le toca.
+
+Un bucle más largo solo se propone mientras siga siendo un bucle: el número que
+encaja con todo es un mínimo común múltiplo y un valor raro lo dispara a cinco
+cifras. Cuando pasa de cuatro veces el actual, el editor dice cuánto haría falta
+y no te ofrece el botón.
+
 ### Actores
 
 ```jsonc
