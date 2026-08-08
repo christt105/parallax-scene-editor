@@ -11,7 +11,7 @@
   "sprite_root": "assets",
   "layers": [
     {
-      "name": "cielo",
+      "name": "sky",
       "sprite": "layers/sky.png",
       "y": 0,
       "depth": -150,
@@ -20,7 +20,7 @@
       "extend_up": true
     },
     {
-      "name": "montañas",
+      "name": "far hills",
       "sprite": "layers/hills_far.png",
       "y": 56,
       "depth": -140,
@@ -28,7 +28,7 @@
       "tile_period": 256
     },
     {
-      "name": "colinas",
+      "name": "near hills",
       "sprite": "layers/hills_near.png",
       "y": 68,
       "depth": -130,
@@ -36,7 +36,7 @@
       "tile_period": 256
     },
     {
-      "name": "arboleda",
+      "name": "trees",
       "sprite": "layers/trees.png",
       "y": 74,
       "depth": -120,
@@ -44,7 +44,7 @@
       "tile_period": 256
     },
     {
-      "name": "suelo",
+      "name": "ground",
       "sprite": "layers/ground.png",
       "y": 122,
       "depth": -110,
@@ -53,7 +53,7 @@
       "extend_down": true
     },
     {
-      "name": "hierba delante",
+      "name": "front grass",
       "sprite": "layers/grass_front.png",
       "y": 146,
       "depth": 100,
@@ -63,7 +63,7 @@
   ],
   "actors": [
     {
-      "name": "corredor",
+      "name": "runner",
       "sprite": "sprites/walker.png",
       "frames": 4,
       "delay": 4,
@@ -76,7 +76,7 @@
       ]
     },
     {
-      "name": "pájaro",
+      "name": "bird",
       "sprite": "sprites/bird.png",
       "frames": 2,
       "delay": 4,
@@ -93,7 +93,7 @@
       ]
     },
     {
-      "name": "nube",
+      "name": "cloud",
       "sprite": "sprites/cloud.png",
       "frames": 1,
       "delay": 1,

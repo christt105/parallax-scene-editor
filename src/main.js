@@ -47,14 +47,14 @@ app.relink = () => {
   const plan = planRelink(app.store.scene, paths);
   if (plan.kind === 'none') {
     return say(plan.missing
-      ? `no encuentro dónde están ${plan.missing} de las imágenes: cárgalas o elígelas a mano`
-      : 'todas las imágenes de la escena están localizadas', plan.missing ? 'err' : 'ok');
+      ? `cannot find ${plan.missing} of the images: load them or pick them by hand`
+      : 'every image in the scene is accounted for', plan.missing ? 'err' : 'ok');
   }
   app.store.commit(null, scene => applyRelink(scene, plan));
   const left = app.missingCount();
   say(plan.kind === 'prefix'
-    ? `rutas reparadas: la raíz de assets pasa a «${plan.prefix}»`
-    : `${plan.fixes.length} ruta(s) reparadas${left ? `, quedan ${left} sin resolver` : ''}`,
+    ? `paths repaired: the asset root is now «${plan.prefix}»`
+    : `${plan.fixes.length} path(s) repaired${left ? `, ${left} still unresolved` : ''}`,
     left ? 'err' : 'ok');
   markPanels();
 };
@@ -111,7 +111,7 @@ const sceneText = () => JSON.stringify(compact(app.store.scene), null, 2);
  * Mirror the edit onto the disk, when there is a disk to mirror it onto.
  *
  * Deliberately only ever writes a file the user already pointed at — one they
- * opened from the folder, or one an explicit *Guardar* created. Inventing
+ * opened from the folder, or one an explicit *Save* created. Inventing
  * `scene.json` inside somebody's art folder because they nudged a sprite is a
  * surprise, and a folder picked for reading is not consent to be written into.
  */
@@ -135,30 +135,30 @@ function syncSaveState() {
 
   let text, cls = 'pill save-state', title = '';
   if (!app.assets.canWrite) {
-    text = 'solo en el navegador';
+    text = 'browser only';
     title = app.assets.count
-      ? 'estos archivos son de solo lectura; abre una carpeta para escribir en el disco'
-      : 'abre una carpeta para que la escena se guarde en el disco';
+      ? 'these files are read-only; open a folder to write to disk'
+      : 'open a folder and the scene will save itself to disk';
     cls += ' muted';
   } else if (disk.state === ERROR) {
-    text = `autoguardado detenido: ${disk.error?.message || 'no se pudo escribir'}`;
-    title = 'vuelve a marcar «auto» para reintentar';
+    text = `autosave stopped: ${disk.error?.message || 'the write failed'}`;
+    title = 'tick «auto» again to retry';
     cls += ' bad';
   } else if (!disk.enabled) {
-    text = app.store.dirty ? 'sin guardar' : 'auto desactivado';
-    title = 'el autoguardado en disco está desactivado; Ctrl+S guarda';
+    text = app.store.dirty ? 'unsaved' : 'auto off';
+    title = 'autosave to disk is off; Ctrl+S saves';
     cls += app.store.dirty ? ' bad' : ' muted';
   } else if (!app.scenePath) {
-    text = 'sin archivo · pulsa Guardar';
-    title = 'la escena aún no tiene archivo en la carpeta; al guardarla una vez, ' +
-            'el resto de cambios van solos';
+    text = 'no file yet · press Save';
+    title = 'the scene has no file in the folder yet; save it once and ' +
+            'every change after that goes on its own';
     cls += ' bad';
   } else if (disk.state === SAVING || disk.state === PENDING) {
-    text = `guardando ${app.scenePath}…`;
+    text = `saving ${app.scenePath}…`;
     cls += ' muted';
   } else {
     text = `↳ ${app.scenePath}`;
-    title = `cada cambio se escribe en ${app.assets.label}/${app.scenePath}`;
+    title = `every change is written to ${app.assets.label}/${app.scenePath}`;
   }
   pill.className = cls;
   pill.textContent = text;
@@ -262,7 +262,7 @@ app.moveKey = (actorIndex, keyIndex, f) => {
 };
 
 app.addKey = () => {
-  if (app.selection.kind !== 'actor') return say('elige un actor primero', 'err');
+  if (app.selection.kind !== 'actor') return say('pick an actor first', 'err');
   const index = app.selection.index;
   const f = app.frame;
   app.editIndex('actor', index, null, (a, scene) => {
@@ -276,7 +276,7 @@ app.addKey = () => {
   });
   const a = app.store.scene.actors[index];
   app.selKey = a.keys.findIndex(k => k.f === f);
-  say(`clave en el fotograma ${f}`, 'ok');
+  say(`key at frame ${f}`, 'ok');
 };
 
 app.deleteKey = () => {
@@ -298,7 +298,7 @@ app.duplicate = () => {
   app.store.commit(null, scene => {
     const list = kind === 'layer' ? scene.layers : scene.actors;
     const copy = clone(list[index]);
-    copy.name = `${copy.name} copia`;
+    copy.name = `${copy.name} copy`;
     list.splice(index + 1, 0, copy);
   });
   app.select(kind, index + 1);
@@ -319,10 +319,10 @@ app.detectFrames = async () => {
   const a = selected();
   if (!a) return;
   const img = app.resolve(a.sprite);
-  if (!img) return say('la imagen aún no está cargada', 'err');
+  if (!img) return say('the image has not loaded yet', 'err');
   const n = await guessFrames(img);
   app.edit('frames', o => { o.frames = n; });
-  say(`${n} fotograma(s) detectados en ${a.sprite}`, 'ok');
+  say(`${n} frame(s) detected in ${a.sprite}`, 'ok');
 };
 
 function sampleAt(actor, f, loop) {
@@ -369,10 +369,10 @@ function outlinerRow(kind, index, item) {
     },
   }, [
     thumb,
-    h('span.nm', { text: item.name || item.sprite || '(sin nombre)' }),
-    h('span.tag', { text: kind === 'layer' ? `v${item.speed}` : (item.keys ? `${item.keys.length}k` : 'fija') }),
+    h('span.nm', { text: item.name || item.sprite || '(unnamed)' }),
+    h('span.tag', { text: kind === 'layer' ? `v${item.speed}` : (item.keys ? `${item.keys.length}k` : 'fixed') }),
     h('button.eye', {
-      title: 'mostrar / ocultar',
+      title: 'show / hide',
       text: item.visible === false ? '○' : '●',
       onclick: e => {
         e.stopPropagation();
@@ -390,7 +390,7 @@ function renderOutliner() {
   scene.layers.forEach((l, i) => layers.append(outlinerRow('layer', i, l)));
   scene.actors.forEach((a, i) => actors.append(outlinerRow('actor', i, a)));
   layers.append(h('li.add-row', {}, [
-    button('+ capa', () => addFromAsset('layer'), 'slim'),
+    button('+ layer', () => addFromAsset('layer'), 'slim'),
   ]));
   actors.append(h('li.add-row', {}, [
     button('+ actor', () => addFromAsset('actor'), 'slim'),
@@ -426,7 +426,7 @@ async function insertFromAsset(kind, path) {
     index = app.store.scene.actors.length - 1;
   }
   app.select(kind, index);
-  say(`añadido ${rel}`, 'ok');
+  say(`added ${rel}`, 'ok');
 }
 
 // ---------------------------------------------------------- asset browser --
@@ -494,14 +494,14 @@ function renderAssets() {
   $('#asset-empty').hidden = paths.length > 0;
   const note = $('#asset-count');
   note.hidden = paths.length <= ASSET_PAGE;
-  note.textContent = `mostrando ${ASSET_PAGE} de ${paths.length} · escribe arriba para acotar`;
+  note.textContent = `showing ${ASSET_PAGE} of ${paths.length} · type above to narrow it down`;
   for (const path of paths.slice(0, ASSET_PAGE)) {
     list.append(assetCard(path, p => {
       if (app.selection.kind !== 'scene') {
         const root = app.store.scene.sprite_root
           ? app.store.scene.sprite_root.replace(/\/+$/, '') + '/' : '';
         app.edit('sprite', o => { o.sprite = p.startsWith(root) ? p.slice(root.length) : p; });
-        say('sprite asignado', 'ok');
+        say('sprite assigned', 'ok');
       } else {
         insertFromAsset('actor', p);
       }
@@ -510,15 +510,15 @@ function renderAssets() {
 }
 
 function pickAsset(current, onPick) {
-  const body = openModal('Elegir imagen');
+  const body = openModal('Pick an image');
   const grid = h('div.assets', { style: { maxHeight: '52vh' } });
-  const filter = h('input', { type: 'search', placeholder: 'filtrar…' });
+  const filter = h('input', { type: 'search', placeholder: 'filter…' });
   const fill = () => {
     clear(grid);
     for (const path of app.assets.paths(filter.value).filter(p => !p.endsWith('.json')).slice(0, 400)) {
       grid.append(assetCard(path, p => { onPick(p); closeModal(); }));
     }
-    if (!grid.children.length) grid.append(h('p.note', { text: 'no hay imágenes cargadas' }));
+    if (!grid.children.length) grid.append(h('p.note', { text: 'no images loaded' }));
   };
   filter.addEventListener('input', fill);
   fill();
@@ -545,8 +545,8 @@ async function openFolder(handle = null) {
     await app.assets.openFolder(handle);
     await storage.set('dir', app.assets.dirHandle);
     syncProjectLabel();
-    say(`carpeta «${app.assets.label}»: ${app.assets.count} archivos` +
-        (app.assets.truncated ? ' (tope alcanzado: hay más sin leer)' : ''), 'ok');
+    say(`folder «${app.assets.label}»: ${app.assets.count} files` +
+        (app.assets.truncated ? ' (cap reached: there are more unread)' : ''), 'ok');
     if (app.missingCount()) app.relink();
     const scenes = app.assets.sceneFiles();
     if (scenes.length && !app.scenePath) offerScenes(scenes);
@@ -556,7 +556,7 @@ async function openFolder(handle = null) {
       requestDiskSave();
     }
   } catch (e) {
-    say(e.message || 'no se pudo abrir la carpeta', 'err');
+    say(e.message || 'the folder could not be opened', 'err');
   }
 }
 
@@ -564,16 +564,16 @@ function syncProjectLabel() {
   const label = $('#project-label');
   label.hidden = !app.assets.label;
   label.textContent = app.assets.label
-    ? `${app.assets.label} · ${app.assets.count} archivos${app.assets.canWrite ? '' : ' (solo lectura)'}`
+    ? `${app.assets.label} · ${app.assets.count} files${app.assets.canWrite ? '' : ' (read-only)'}`
     : '';
-  $('#btn-save').textContent = app.assets.canWrite ? 'Guardar' : 'Descargar';
+  $('#btn-save').textContent = app.assets.canWrite ? 'Save' : 'Download';
   syncSaveState();
 }
 
 function offerScenes(scenes) {
-  const body = openModal('Escenas encontradas en la carpeta');
+  const body = openModal('Scenes found in the folder');
   body.append(
-    h('p.note', { text: 'Abre una para seguir trabajando sobre ella.' }),
+    h('p.note', { text: 'Open one to carry on working on it.' }),
     h('ul.scene-list', {}, scenes.map(p =>
       h('li', { text: p, onclick: () => { closeModal(); loadScene(p); } }))),
   );
@@ -581,7 +581,7 @@ function offerScenes(scenes) {
 
 async function loadScene(path) {
   const text = await app.assets.readText(path);
-  if (!text) return say(`no pude leer ${path}`, 'err');
+  if (!text) return say(`could not read ${path}`, 'err');
   try {
     const data = JSON.parse(text);
     app.store.replace(data);
@@ -594,12 +594,12 @@ async function loadScene(path) {
     app.select('scene');
     app.setFrame(0);
     app.stage.layout();
-    say(`abierta ${path}`, 'ok');
+    say(`opened ${path}`, 'ok');
     // a scene saved next to its sprites and a folder opened higher up disagree
     // about where everything is; this is the moment to reconcile them
     if (app.missingCount()) app.relink();
   } catch (e) {
-    say(`JSON inválido en ${path}: ${e.message}`, 'err');
+    say(`invalid JSON in ${path}: ${e.message}`, 'err');
   }
 }
 
@@ -617,17 +617,17 @@ async function saveScene() {
       app.store.dirty = false;
       app.disk.seed(path, text);      // and from here on it keeps itself up to date
       renderAssets();
-      say(`guardado en ${app.assets.label}/${path}` +
-          (app.disk.enabled ? ' · los siguientes cambios se guardan solos' : ''), 'ok');
+      say(`saved to ${app.assets.label}/${path}` +
+          (app.disk.enabled ? ' · every change after this one saves itself' : ''), 'ok');
       return;
     } catch (e) {
-      return say(`no se pudo escribir: ${e.message}`, 'err');
+      return say(`the write failed: ${e.message}`, 'err');
     }
   }
   download(new Blob([text], { type: 'application/json' }), `${name}.json`);
   app.store.dirty = false;
   syncSaveState();
-  say('descargado (abre una carpeta para guardar en el disco)', 'ok');
+  say('downloaded (open a folder to save to disk)', 'ok');
 }
 
 /**
@@ -663,13 +663,13 @@ async function packageScene(onProgress = () => {}) {
 
 function exportModal() {
   const scene = app.store.scene;
-  const body = openModal('Exportar');
+  const body = openModal('Export');
   const step = h('input', { type: 'number', min: 1, max: 16, value: 1 });
   const info = h('p.note');
   const bar = h('progress', { value: 0, max: 1, hidden: true });
   const sync = () => {
     const n = frameList(scene, +step.value || 1).length;
-    info.textContent = `${n} fotogramas · ${scene.canvas[0]}×${scene.canvas[1]} · ` +
+    info.textContent = `${n} frames · ${scene.canvas[0]}×${scene.canvas[1]} · ` +
       `${(n / (scene.fps / (+step.value || 1))).toFixed(2)} s`;
   };
   step.addEventListener('input', sync);
@@ -684,11 +684,11 @@ function exportModal() {
         onProgress: (p, text) => { bar.value = p; info.textContent = `${label}: ${text}`; },
       });
       download(res.blob, filename);
-      info.textContent = `listo · ${(res.blob.size / 1048576).toFixed(1)} MB` +
-        (res.exact === false ? ' · paleta reducida a 256 colores' : '');
-      say(`exportado ${filename}`, 'ok');
+      info.textContent = `done · ${(res.blob.size / 1048576).toFixed(1)} MB` +
+        (res.exact === false ? ' · palette reduced to 256 colours' : '');
+      say(`exported ${filename}`, 'ok');
     } catch (e) {
-      info.textContent = `falló: ${e.message}`;
+      info.textContent = `failed: ${e.message}`;
     } finally {
       bar.hidden = true;
       body.querySelectorAll('button').forEach(b => (b.disabled = false));
@@ -700,40 +700,40 @@ function exportModal() {
     h('div.export-grid', {}, [
       h('div.export-card', {}, [
         h('h3', { text: 'GIF' }),
-        h('p', { text: 'Bucle listo para compartir. Paleta exacta si la escena cabe en 256 colores.' }),
-        button('Exportar GIF', () => run('GIF',
+        h('p', { text: 'A loop ready to share. Exact palette if the scene fits in 256 colours.' }),
+        button('Export GIF', () => run('GIF',
           o => exportGIF(scene, app.resolve, o), `${name}.gif`), 'accent'),
       ]),
       h('div.export-card', {}, [
         h('h3', { text: 'WebM' }),
         h('p', { text: webmSupported()
-          ? 'Vídeo sin límite de colores. Se graba en tiempo real, así que tarda lo que dura el bucle.'
-          : 'Este navegador no lo soporta.' }),
-        button('Exportar WebM', () => run('WebM',
+          ? 'Video with no colour limit. Recorded in real time, so it takes as long as the loop.'
+          : 'This browser does not support it.' }),
+        button('Export WebM', () => run('WebM',
           o => exportWebM(scene, app.resolve, o), `${name}.webm`), webmSupported() ? '' : 'ghost'),
       ]),
       h('div.export-card', {}, [
         h('h3', { text: 'PNG (zip)' }),
-        h('p', { text: 'Un archivo por fotograma, para montar el vídeo con ffmpeg o Aseprite.' }),
-        button('Exportar PNG', () => run('PNG',
+        h('p', { text: 'One file per frame, to assemble with ffmpeg or open in Aseprite.' }),
+        button('Export PNG', () => run('PNG',
           o => exportPNGSequence(scene, app.resolve, o), `${name}_frames.zip`)),
       ]),
       h('div.export-card', {}, [
-        h('h3', { text: 'Fotograma actual' }),
-        h('p', { text: `PNG único del fotograma ${app.frame}.` }),
-        button('Guardar PNG', async () => {
+        h('h3', { text: 'Current frame' }),
+        h('p', { text: `A single PNG of frame ${app.frame}.` }),
+        button('Save PNG', async () => {
           const blob = await exportFramePNG(scene, app.resolve, app.frame);
           download(blob, `${name}_f${app.frame}.png`);
         }),
       ]),
       h('div.export-card', {}, [
-        h('h3', { text: 'Empaquetar escena' }),
-        h('p', { text: 'El JSON con las imágenes que usa, y solo esas, bajo assets/. ' +
-                       'Se descomprime en cualquier sitio y las rutas siguen valiendo.' }),
-        button('Empaquetar (zip)', () => run('Empaquetando', async o => {
+        h('h3', { text: 'Package scene' }),
+        h('p', { text: 'The JSON with the images it uses, and only those, under assets/. ' +
+                       'Unzip it anywhere and the paths still resolve.' }),
+        button('Package (zip)', () => run('Packaging', async o => {
           const res = await packageScene(o.onProgress);
           if (res.missing.length) {
-            say(`empaquetada sin ${res.missing.length} imagen(es) que no encuentro: ` +
+            say(`packaged without ${res.missing.length} image(s) that cannot be found: ` +
                 res.missing.slice(0, 3).join(', '), 'err');
           }
           return res;
@@ -741,7 +741,7 @@ function exportModal() {
       ]),
     ]),
     h('div.modal-actions', {}, [
-      h('label.field', {}, [h('span.field-label', { text: 'Quedarse con 1 de cada' }), step]),
+      h('label.field', {}, [h('span.field-label', { text: 'Keep 1 frame in every' }), step]),
     ]),
     info, bar,
   );
@@ -751,32 +751,32 @@ function exportModal() {
 // ------------------------------------------------------------ json panel --
 
 function jsonModal() {
-  const body = openModal('JSON de la escena');
+  const body = openModal('Scene JSON');
   const area = h('textarea', { spellcheck: false, class: 'mono',
                                value: JSON.stringify(compact(app.store.scene), null, 2) });
   const note = h('p.note');
   body.append(area, h('div.modal-actions', {}, [
-    button('Aplicar', () => {
+    button('Apply', () => {
       try {
         const next = JSON.parse(area.value);
         app.store.replace(next);
         app.select('scene');
         app.stage.layout();
-        note.textContent = 'aplicado';
+        note.textContent = 'applied';
         note.className = 'note ok';
         markPanels();
       } catch (e) {
-        note.textContent = `JSON inválido: ${e.message}`;
+        note.textContent = `invalid JSON: ${e.message}`;
         note.className = 'note warn';
       }
     }, 'accent'),
-    button('Copiar', async () => {
-      try { await navigator.clipboard.writeText(area.value); note.textContent = 'copiado'; }
-      catch { note.textContent = 'copia manualmente: el navegador no lo permitió'; }
+    button('Copy', async () => {
+      try { await navigator.clipboard.writeText(area.value); note.textContent = 'copied'; }
+      catch { note.textContent = 'copy it by hand: the browser would not allow it'; }
     }),
-    button('Descargar', () => download(new Blob([area.value], { type: 'application/json' }),
+    button('Download', () => download(new Blob([area.value], { type: 'application/json' }),
                                        `${app.store.scene.name || 'scene'}.json`)),
-    button('Cargar archivo…', () => {
+    button('Load file…', () => {
       const input = h('input', { type: 'file', accept: '.json' });
       input.onchange = async () => {
         const file = input.files[0];
@@ -789,23 +789,23 @@ function jsonModal() {
 }
 
 function helpModal() {
-  const body = openModal('Atajos');
+  const body = openModal('Shortcuts');
   const rows = [
-    ['Espacio', 'reproducir / pausa'],
-    ['← →', 'fotograma anterior / siguiente (con Mayús, de 10 en 10)'],
-    ['Alt + flechas', 'mover el actor seleccionado 1 px (con Mayús, 8 px)'],
-    ['K', 'añadir clave en el fotograma actual'],
-    ['Supr', 'borrar la clave seleccionada'],
-    ['D', 'duplicar lo seleccionado'],
-    ['G / O', 'rejilla / papel cebolla'],
-    ['Ctrl+Z · Ctrl+Mayús+Z', 'deshacer / rehacer'],
-    ['Ctrl+S', 'guardar la escena'],
-    ['Arrastrar en el lienzo', 'colocar el actor (Mayús ajusta a 8 px)'],
-    ['Doble clic en la línea de tiempo', 'crear una clave ahí'],
+    ['Space', 'play / pause'],
+    ['← →', 'previous / next frame (with Shift, ten at a time)'],
+    ['Alt + arrows', 'move the selected actor 1 px (with Shift, 8 px)'],
+    ['K', 'add a key at the current frame'],
+    ['Del', 'delete the selected key'],
+    ['D', 'duplicate the selection'],
+    ['G / O', 'grid / onion skin'],
+    ['Ctrl+Z · Ctrl+Shift+Z', 'undo / redo'],
+    ['Ctrl+S', 'save the scene'],
+    ['Drag on the canvas', 'place the actor (Shift snaps to 8 px)'],
+    ['Double click on the timeline', 'create a key there'],
   ];
   body.append(
     h('div.help-grid', {}, rows.flatMap(([k, v]) => [h('span.kbd', { text: k }), h('span', { text: v })])),
-    h('p.note', { html: 'El formato de escena y el flujo de trabajo están en el ' +
+    h('p.note', { html: 'The scene format and the workflow are in the ' +
       '<a href="https://github.com/christt105/parallax-scene-editor#readme" target="_blank" rel="noopener">README</a>.' }),
   );
 }
@@ -900,9 +900,9 @@ function bindDrop() {
     const had = app.assets.count;
     const n = await app.assets.adoptDrop(e.dataTransfer);
     syncProjectLabel();
-    if (!n) return say('no encontré imágenes en lo que has soltado', 'err');
-    say(had ? `${n} archivo(s) añadidos a los ${had} que ya había`
-            : `${n} archivos cargados (solo lectura)`, 'ok');
+    if (!n) return say('no images in what you dropped', 'err');
+    say(had ? `${n} file(s) added to the ${had} already loaded`
+            : `${n} files loaded (read-only)`, 'ok');
     if (app.missingCount()) app.relink();
     const scenes = app.assets.sceneFiles();
     if (!had && scenes.length) offerScenes(scenes);
@@ -966,17 +966,17 @@ function bindToolbar() {
   $('#file-input').onchange = e => {
     const n = app.assets.adoptFiles(e.target.files);
     syncProjectLabel();
-    say(n ? `${n} archivos cargados (solo lectura)` : 'no encontré imágenes', n ? 'ok' : 'err');
+    say(n ? `${n} files loaded (read-only)` : 'no images found', n ? 'ok' : 'err');
     e.target.value = '';
   };
   $('#btn-save').onclick = saveScene;
   $('#btn-open-scene').onclick = () => {
     const scenes = app.assets.sceneFiles();
-    if (!scenes.length) return say('no hay archivos .json en la carpeta cargada', 'err');
+    if (!scenes.length) return say('no .json files in the loaded folder', 'err');
     offerScenes(scenes);
   };
   $('#btn-new').onclick = () => {
-    if (app.store.dirty && !confirm('Hay cambios sin guardar. ¿Empezar una escena nueva?')) return;
+    if (app.store.dirty && !confirm('There are unsaved changes. Start a new scene?')) return;
     app.store.replace(defaultScene());
     app.scenePath = null;
     app.store.dirty = false;
@@ -991,7 +991,7 @@ function bindToolbar() {
   $('#btn-export').onclick = exportModal;
   $('#btn-help').onclick = helpModal;
   $('#btn-scene-props').onclick = () => app.select('scene');
-  $('#btn-refresh-assets').onclick = () => { app.assets.refresh(); renderAssets(); say('imágenes recargadas', 'ok'); };
+  $('#btn-refresh-assets').onclick = () => { app.assets.refresh(); renderAssets(); say('images reloaded', 'ok'); };
   $('#asset-filter').addEventListener('input', renderAssets);
   $('#modal-close').onclick = closeModal;
 
@@ -1014,11 +1014,11 @@ function bindToolbar() {
       requestDiskSave();
       app.disk.flush();
       say(app.scenePath
-        ? `autoguardado en ${app.assets.label}/${app.scenePath}`
-        : 'autoguardado activado · guarda una vez para elegir el archivo', 'ok');
+        ? `autosaving to ${app.assets.label}/${app.scenePath}`
+        : 'autosave on · save once to choose the file', 'ok');
     } else {
       syncSaveState();
-      say('autoguardado en disco desactivado · Ctrl+S para guardar', 'ok');
+      say('autosave to disk is off · Ctrl+S to save', 'ok');
     }
   };
 
@@ -1042,8 +1042,8 @@ async function boot() {
   // was alt-tabbing back to press «recargar» after every single save.
   app.assets.onReload = paths => {
     const names = paths.map(p => p.split('/').pop());
-    say(`actualizado desde el disco: ${names.slice(0, 3).join(', ')}` +
-        (names.length > 3 ? ` y ${names.length - 3} más` : ''), 'ok');
+    say(`updated from disk: ${names.slice(0, 3).join(', ')}` +
+        (names.length > 3 ? ` and ${names.length - 3} more` : ''), 'ok');
   };
   app.assets.watch(true);
   app.disk = new DiskAutosave({
@@ -1052,8 +1052,8 @@ async function boot() {
       // The disk is now the authority again, so nothing is pending anywhere.
       if (state === SAVED) app.store.dirty = false;
       if (state === ERROR) {
-        say(`no se pudo guardar en ${app.scenePath}: ${app.disk.error?.message || ''} · ` +
-            'vuelve a marcar «auto» o usa Guardar', 'err');
+        say(`could not save to ${app.scenePath}: ${app.disk.error?.message || ''} · ` +
+            'tick «auto» again or use Save', 'err');
       }
       syncSaveState();
     },
@@ -1067,8 +1067,8 @@ async function boot() {
   bindDrop();
 
   if (!AssetLibrary.supportsFolder) {
-    $('#btn-project').textContent = 'Abrir carpeta…';
-    $('#btn-project').title = 'Este navegador no puede escribir en el disco: se cargará en solo lectura';
+    $('#btn-project').textContent = 'Open folder…';
+    $('#btn-project').title = 'This browser cannot write to disk: it will load read-only';
   }
 
   const saved = await storage.get('autosave');
@@ -1086,14 +1086,14 @@ async function boot() {
     // permission, and dropped files are gone for good.
     if (saved.source === 'url') {
       await app.assets.loadManifest(DEMO).catch(() => {});
-      say('sesión restaurada · escena de ejemplo');
+      say('session restored · example scene');
     } else if (dir) {
       say(h('span', {}, [
-        'sesión restaurada · ',
-        button(`reconectar «${dir.name}»`, () => openFolder(dir), 'slim'),
+        'session restored · ',
+        button(`reconnect «${dir.name}»`, () => openFolder(dir), 'slim'),
       ]));
     } else {
-      say('sesión restaurada · vuelve a abrir la carpeta para ver los sprites');
+      say('session restored · reopen the folder to see the sprites');
     }
   } else {
     try {
@@ -1102,10 +1102,10 @@ async function boot() {
       app.store.replace(JSON.parse(text), { history: false });
       app.store.dirty = false;
       $('#scene-name').value = app.store.scene.name;
-      say('escena de ejemplo · abre una carpeta tuya para trabajar con tus sprites');
+      say('example scene · open a folder of your own to work with your sprites');
     } catch {
       app.store.replace(defaultScene(), { history: false });
-      say('empieza abriendo una carpeta con tus sprites');
+      say('start by opening a folder with your sprites');
     }
   }
   syncProjectLabel();

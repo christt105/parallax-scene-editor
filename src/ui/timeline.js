@@ -13,7 +13,7 @@ export class Timeline {
     this.ruler = h('div.ruler');
     this.playhead = h('div.playhead');
     this.body = h('div.tl-body', {}, [this.tracks, this.playhead]);
-    root.append(h('div.tl-head', {}, [h('div.tl-gutter', { text: 'actores' }), this.ruler]), this.body);
+    root.append(h('div.tl-head', {}, [h('div.tl-gutter', { text: 'actors' }), this.ruler]), this.body);
 
     const scrub = ev => {
       const lane = ev.target.closest('.lane') || this.ruler;
@@ -60,7 +60,7 @@ export class Timeline {
     clear(this.tracks);
     scene.actors.forEach((actor, i) => {
       const selected = selection.kind === 'actor' && selection.index === i;
-      const lane = h('div.lane', { title: 'doble clic para añadir una clave' });
+      const lane = h('div.lane', { title: 'double click to add a key' });
       const row = h('div.track' + (selected ? '.sel' : ''), {}, [
         h('div.tl-gutter', {
           text: actor.name,
@@ -118,7 +118,7 @@ export class Timeline {
     });
 
     if (!scene.actors.length) {
-      this.tracks.append(h('p.note', { text: 'sin actores todavía' }));
+      this.tracks.append(h('p.note', { text: 'no actors yet' }));
     }
     this.syncPlayhead();
   }

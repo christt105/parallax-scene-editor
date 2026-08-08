@@ -145,8 +145,8 @@ export function cycleWarnings(scene) {
       out.push({
         actor: a,
         cycle,
-        text: `«${a.name}» cicla cada ${cycle} fotogramas y ${scene.loop_frames} no es múltiplo: ` +
-              `saltará al reiniciar. Prueba un orden de ida y vuelta (0,1,2,1) o cambia el retardo.`,
+        text: `«${a.name}» cycles every ${cycle} frames and ${scene.loop_frames} is not a ` +
+              `multiple: it will jump at the wrap. Try a there-and-back order (0,1,2,1) or another delay.`,
       });
     }
   }
@@ -180,9 +180,9 @@ export function seamWarnings(scene, periodOf = () => 0) {
         period,
         travel,
         off: Math.min(off, period - off),
-        text: `«${l.name}» recorre ${travel} px en el bucle y el mosaico mide ${period}: ` +
-              `dará un salto de ${Math.min(off, period - off)} px al reiniciar. ` +
-              `Ajusta la velocidad, el periodo o los fotogramas del bucle.`,
+        text: `«${l.name}» travels ${travel} px per loop over a ${period} px tile: ` +
+              `it will jump ${Math.min(off, period - off)} px at the wrap. ` +
+              `Its panel lists the speeds that would close it.`,
       });
     }
   }

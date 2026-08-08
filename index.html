@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Parallax Scene Editor</title>
-<meta name="description" content="Editor en el navegador para escenas de parallax en pixel art que cierran en bucle. Sin servidor, sin subir nada.">
+<meta name="description" content="Browser editor for looping parallax pixel-art scenes. No server, nothing uploaded.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2314161c'/><rect x='1' y='9' width='14' height='2' fill='%237fd4a0'/><rect x='2' y='12' width='12' height='2' fill='%23f0b45e'/><rect x='6' y='4' width='4' height='4' fill='%23e6e9ef'/></svg>">
 <link rel="stylesheet" href="app.css">
 </head>
@@ -17,32 +17,32 @@
   </div>
 
   <div class="group">
-    <button id="btn-project" class="primary" title="Abrir una carpeta del disco">Abrir carpeta…</button>
-    <button id="btn-drop" class="ghost" title="Cargar archivos sueltos">Archivos…</button>
+    <button id="btn-project" class="primary" title="Open a folder from your disk">Open folder…</button>
+    <button id="btn-drop" class="ghost" title="Load loose files">Files…</button>
     <span id="project-label" class="pill" hidden></span>
   </div>
 
   <div class="group">
     <input id="scene-name" class="scene-name" value="scene" spellcheck="false"
-           title="Nombre del archivo de escena">
-    <button id="btn-save" title="Guardar en la carpeta (Ctrl+S)">Guardar</button>
-    <label class="chk" title="Escribir cada cambio en el archivo de la carpeta">
+           title="Scene file name">
+    <button id="btn-save" title="Save into the folder (Ctrl+S)">Save</button>
+    <label class="chk" title="Write every change into the file in the folder">
       <input type="checkbox" id="chk-autosave" checked> auto
     </label>
     <span id="save-state" class="pill save-state"></span>
-    <button id="btn-open-scene" title="Abrir una escena del proyecto">Abrir…</button>
-    <button id="btn-new" class="ghost" title="Escena vacía">Nueva</button>
+    <button id="btn-open-scene" title="Open a scene from the project">Open…</button>
+    <button id="btn-new" class="ghost" title="Empty scene">New</button>
   </div>
 
   <div class="group">
-    <button id="btn-undo" class="icon" title="Deshacer (Ctrl+Z)">↶</button>
-    <button id="btn-redo" class="icon" title="Rehacer (Ctrl+Shift+Z)">↷</button>
+    <button id="btn-undo" class="icon" title="Undo (Ctrl+Z)">↶</button>
+    <button id="btn-redo" class="icon" title="Redo (Ctrl+Shift+Z)">↷</button>
   </div>
 
   <div class="group right">
-    <button id="btn-json" class="ghost" title="Ver y editar el JSON">JSON</button>
-    <button id="btn-export" class="accent" title="Exportar GIF, WebM o PNG">Exportar…</button>
-    <button id="btn-help" class="icon ghost" title="Atajos y ayuda">?</button>
+    <button id="btn-json" class="ghost" title="View and edit the JSON">JSON</button>
+    <button id="btn-export" class="accent" title="Export GIF, WebM or PNG">Export…</button>
+    <button id="btn-help" class="icon ghost" title="Shortcuts and help">?</button>
   </div>
 </header>
 
@@ -50,12 +50,12 @@
   <aside id="left">
     <section class="panel">
       <div class="panel-head">
-        <h2>Escena</h2>
-        <button id="btn-scene-props" class="link">propiedades</button>
+        <h2>Scene</h2>
+        <button id="btn-scene-props" class="link">properties</button>
       </div>
       <ul id="outliner-layers" class="outliner"></ul>
       <div class="panel-head sub">
-        <h2>Actores</h2>
+        <h2>Actors</h2>
       </div>
       <ul id="outliner-actors" class="outliner"></ul>
     </section>
@@ -64,13 +64,13 @@
       <div class="panel-head">
         <h2>Assets</h2>
         <button id="btn-refresh-assets" class="link"
-                title="Las imágenes que cambian se recargan solas; esto fuerza a releerlo todo">recargar</button>
+                title="Images that change reload themselves; this forces a full re-read">reload</button>
       </div>
-      <input id="asset-filter" type="search" placeholder="filtrar…" spellcheck="false">
+      <input id="asset-filter" type="search" placeholder="filter…" spellcheck="false">
       <p class="note" id="asset-count" hidden></p>
       <div id="asset-list" class="assets"></div>
       <p class="note" id="asset-empty">
-        Abre una carpeta para usar tus propios sprites, o arrastra archivos aquí.
+        Open a folder to use your own sprites, or drag files here.
       </p>
     </section>
   </aside>
@@ -79,14 +79,14 @@
     <div id="stage"></div>
 
     <div id="transport">
-      <button id="btn-play" class="icon" title="Reproducir / pausa (espacio)">⏵</button>
-      <button id="btn-prev" class="icon" title="Fotograma anterior (←)">⟨</button>
-      <button id="btn-next" class="icon" title="Fotograma siguiente (→)">⟩</button>
+      <button id="btn-play" class="icon" title="Play / pause (space)">⏵</button>
+      <button id="btn-prev" class="icon" title="Previous frame (←)">⟨</button>
+      <button id="btn-next" class="icon" title="Next frame (→)">⟩</button>
       <input id="scrub" type="range" min="0" value="0" step="1">
       <span id="frame-label" class="mono"></span>
-      <label class="chk" title="Rejilla de 8 px (G)"><input type="checkbox" id="chk-grid"> rejilla</label>
-      <label class="chk" title="Papel cebolla (O)"><input type="checkbox" id="chk-onion"> cebolla</label>
-      <label class="chk" title="Línea del suelo"><input type="checkbox" id="chk-guides" checked> guías</label>
+      <label class="chk" title="8 px grid (G)"><input type="checkbox" id="chk-grid"> grid</label>
+      <label class="chk" title="Onion skin (O)"><input type="checkbox" id="chk-onion"> onion</label>
+      <label class="chk" title="Ground line"><input type="checkbox" id="chk-guides" checked> guides</label>
     </div>
 
     <div id="timeline"></div>
@@ -96,13 +96,13 @@
   <aside id="right"></aside>
 </main>
 
-<div id="drop-veil" hidden><span>Suelta la carpeta o los archivos</span></div>
+<div id="drop-veil" hidden><span>Drop the folder or the files</span></div>
 <div id="asset-preview" hidden></div>
 
 <dialog id="modal">
   <div class="modal-head">
     <h2 id="modal-title"></h2>
-    <button class="icon ghost" id="modal-close" title="Cerrar (Esc)">×</button>
+    <button class="icon ghost" id="modal-close" title="Close (Esc)">×</button>
   </div>
   <div id="modal-body"></div>
 </dialog>

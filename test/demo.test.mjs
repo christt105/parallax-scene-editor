@@ -90,7 +90,7 @@ test('the demo runs at a pace you can actually look at', () => {
   const seconds = scene.loop_frames / scene.fps;
   assert.ok(seconds >= 4 && seconds <= 15, `a ${seconds.toFixed(1)} s loop is not a demo`);
   const [vw] = viewSize(scene);
-  const ground = scene.layers.find(l => l.name === 'suelo');
+  const ground = scene.layers.find(l => l.name === 'ground');
   const crossing = vw / (ground.speed * scene.fps);
   assert.ok(crossing >= 2.5, `the ground crosses the view in ${crossing.toFixed(1)} s`);
 });

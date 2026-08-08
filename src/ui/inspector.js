@@ -7,53 +7,53 @@ import { ANCHORS, EASES, MOTION_TYPES, actorCycle, layerShift,
 import { sampleKeys } from '../anim.js';
 
 const SCENE_FIELDS = [
-  { key: 'name', label: 'Nombre', type: 'text' },
-  { key: 'canvas', label: 'Lienzo', type: 'size' },
+  { key: 'name', label: 'Name', type: 'text' },
+  { key: 'canvas', label: 'Canvas', type: 'size' },
   { key: 'zoom', label: 'Zoom', type: 'int', min: 1, max: 16,
-    hint: 'aumento entero, sin suavizado' },
-  { key: 'loop_frames', label: 'Fotogramas', type: 'int', min: 1 },
+    hint: 'integer magnification, no smoothing' },
+  { key: 'loop_frames', label: 'Frames', type: 'int', min: 1 },
   { key: 'fps', label: 'FPS', type: 'number', step: 0.001 },
-  { key: 'world_height', label: 'Alto del mundo', type: 'int', min: 0, nullable: true,
-    hint: 'alto en px al que se ancla la escena; vacío = todo el alto visible' },
-  { key: 'align', label: 'Anclaje vertical', type: 'select',
-    options: [['bottom', 'abajo'], ['center', 'centro'], ['top', 'arriba']] },
-  { key: 'backdrop', label: 'Color de fondo', type: 'color' },
-  { key: 'sprite_root', label: 'Raíz de assets', type: 'text',
-    hint: 'prefijo que se antepone a cada ruta de sprite' },
+  { key: 'world_height', label: 'World height', type: 'int', min: 0, nullable: true,
+    hint: 'height in px the scene anchors to; empty = the whole visible height' },
+  { key: 'align', label: 'Vertical anchor', type: 'select',
+    options: [['bottom', 'bottom'], ['center', 'centre'], ['top', 'top']] },
+  { key: 'backdrop', label: 'Backdrop', type: 'color' },
+  { key: 'sprite_root', label: 'Asset root', type: 'text',
+    hint: 'prefix put in front of every sprite path' },
 ];
 
 const LAYER_FIELDS = [
-  { key: 'name', label: 'Nombre', type: 'text' },
-  { key: 'sprite', label: 'Imagen', type: 'asset' },
+  { key: 'name', label: 'Name', type: 'text' },
+  { key: 'sprite', label: 'Image', type: 'asset' },
   { key: 'y', label: 'y', type: 'number' },
-  { key: 'depth', label: 'Profundidad', type: 'number',
-    hint: 'menor = más al fondo; puede ir delante de los actores' },
-  { key: 'speed', label: 'Velocidad x', type: 'number', step: 0.125,
-    hint: 'px por fotograma; positivo desplaza el decorado a la izquierda' },
-  { key: 'speed_y', label: 'Velocidad y', type: 'number', step: 0.125 },
-  { key: 'tile_period', label: 'Periodo', type: 'int', min: 0,
-    hint: '0 = el ancho de la imagen. Debe dividir velocidad × fotogramas para cerrar el bucle' },
-  { key: 'repeat', label: 'Repetir', type: 'select', options: [['x', 'en x'], ['none', 'no']] },
-  { key: 'extend_up', label: 'Estirar arriba', type: 'bool' },
-  { key: 'extend_down', label: 'Estirar abajo', type: 'bool' },
-  { key: 'opacity', label: 'Opacidad', type: 'range', min: 0, max: 1, step: 0.05 },
+  { key: 'depth', label: 'Depth', type: 'number',
+    hint: 'lower = further back; can sit in front of the actors' },
+  { key: 'speed', label: 'Speed x', type: 'number', step: 0.125,
+    hint: 'px per frame; positive scrolls the artwork leftwards' },
+  { key: 'speed_y', label: 'Speed y', type: 'number', step: 0.125 },
+  { key: 'tile_period', label: 'Tile period', type: 'int', min: 0,
+    hint: "0 = the image's own width. Must divide speed × frames for the loop to close" },
+  { key: 'repeat', label: 'Repeat', type: 'select', options: [['x', 'in x'], ['none', 'no']] },
+  { key: 'extend_up', label: 'Extend up', type: 'bool' },
+  { key: 'extend_down', label: 'Extend down', type: 'bool' },
+  { key: 'opacity', label: 'Opacity', type: 'range', min: 0, max: 1, step: 0.05 },
 ];
 
 const ACTOR_FIELDS = [
-  { key: 'name', label: 'Nombre', type: 'text' },
+  { key: 'name', label: 'Name', type: 'text' },
   { key: 'sprite', label: 'Sprite', type: 'asset' },
-  { key: 'frames', label: 'Fotogramas', type: 'int', min: 1, detect: true },
-  { key: 'grid', label: 'Rejilla', type: 'grid',
-    hint: 'columnas × filas si la hoja no es una tira horizontal' },
-  { key: 'delay', label: 'Retardo', type: 'int', min: 1, hint: 'fotogramas por cel' },
-  { key: 'order', label: 'Orden', type: 'order', hint: 'ej. 0,1,2,1 para ida y vuelta' },
-  { key: 'offset', label: 'Desfase', type: 'int', hint: 'desplaza el ciclo dentro del bucle' },
-  { key: 'anchor', label: 'Anclaje', type: 'select', options: ANCHORS },
-  { key: 'depth', label: 'Profundidad', type: 'number' },
-  { key: 'scale', label: 'Escala', type: 'int', min: 1, max: 8 },
-  { key: 'flip_x', label: 'Voltear x', type: 'bool' },
-  { key: 'flip_y', label: 'Voltear y', type: 'bool' },
-  { key: 'opacity', label: 'Opacidad', type: 'range', min: 0, max: 1, step: 0.05 },
+  { key: 'frames', label: 'Frames', type: 'int', min: 1, detect: true },
+  { key: 'grid', label: 'Grid', type: 'grid',
+    hint: 'columns × rows if the sheet is not a horizontal strip' },
+  { key: 'delay', label: 'Delay', type: 'int', min: 1, hint: 'frames each cel is held' },
+  { key: 'order', label: 'Order', type: 'order', hint: 'e.g. 0,1,2,1 for there and back' },
+  { key: 'offset', label: 'Offset', type: 'int', hint: "shifts this actor's cycle within the loop" },
+  { key: 'anchor', label: 'Anchor', type: 'select', options: ANCHORS },
+  { key: 'depth', label: 'Depth', type: 'number' },
+  { key: 'scale', label: 'Scale', type: 'int', min: 1, max: 8 },
+  { key: 'flip_x', label: 'Flip x', type: 'bool' },
+  { key: 'flip_y', label: 'Flip y', type: 'bool' },
+  { key: 'opacity', label: 'Opacity', type: 'range', min: 0, max: 1, step: 0.05 },
 ];
 
 function control(spec, obj, ctx, onSet) {
@@ -115,12 +115,12 @@ function control(spec, obj, ctx, onSet) {
                { min: 1, placeholder: 'cols' }),
         h('span.times', { text: '×' }),
         number(v ? v[1] : '', n => set(n > 0 ? [(now() && now()[0]) || 1, n] : null),
-               { min: 1, placeholder: 'filas' }),
+               { min: 1, placeholder: 'rows' }),
       ]);
 
     case 'order':
       return h('input', {
-        type: 'text', value: (v || []).join(','), placeholder: 'automático', class: 'mono',
+        type: 'text', value: (v || []).join(','), placeholder: 'automatic', class: 'mono',
         oninput: e => {
           const list = e.target.value.split(',').map(s => parseInt(s, 10))
             .filter(n => Number.isInteger(n) && n >= 0);
@@ -154,7 +154,7 @@ function fieldsFor(specs, obj, ctx, onSet) {
     row.dataset.field = spec.key;
     if (spec.detect) {
       row.querySelector('.field-label').append(
-        button('detectar', () => ctx.detectFrames(), 'link'));
+        button('detect', () => ctx.detectFrames(), 'link'));
     }
     return row;
   });
@@ -185,12 +185,12 @@ function positionBlock(actor, ctx) {
   ];
 
   if (hasKeys && !key) {
-    rows.push(h('p.note', { text: `interpolado en el fotograma ${frame}: al editar se mueve la clave más cercana` }));
+    rows.push(h('p.note', { text: `interpolated at frame ${frame}: editing moves the nearest key` }));
   }
   if (key) {
-    rows.push(field('Suavizado', select(EASES, key.ease || 'linear',
+    rows.push(field('Easing', select(EASES, key.ease || 'linear',
       v => ctx.editUI('ease', a => { a.keys[ctx.selKey].ease = v; }))));
-    rows.push(field('Fotograma', number(key.f, v => ctx.editUI('keyframe', a => {
+    rows.push(field('Frame', number(key.f, v => ctx.editUI('keyframe', a => {
       a.keys[ctx.selKey].f = Math.max(0, Math.min(loop - 1, Math.round(v)));
       a.keys.sort((p, q) => p.f - q.f);
       ctx.selKey = a.keys.findIndex(k => k.f === Math.round(v));
@@ -198,11 +198,11 @@ function positionBlock(actor, ctx) {
   }
 
   rows.push(h('div.row.gap', {}, [
-    button(hasKeys ? '+ Clave aquí' : 'Convertir en animado', () => ctx.addKey()),
-    hasKeys && key ? button('− Borrar clave', () => ctx.deleteKey(), 'danger') : null,
+    button(hasKeys ? '+ Key here' : 'Make it animated', () => ctx.addKey()),
+    hasKeys && key ? button('− Delete key', () => ctx.deleteKey(), 'danger') : null,
   ]));
 
-  return h('section.block', {}, [h('h3', { text: 'Posición' }), ...rows]);
+  return h('section.block', {}, [h('h3', { text: 'Position' }), ...rows]);
 }
 
 function nearestKey(keys, frame) {
@@ -218,9 +218,9 @@ function motionBlock(actor, ctx) {
   const list = actor.motion || [];
   const rows = list.map((m, i) => h('div.motion', {}, [
     h('div.row', {}, [
-      select(MOTION_TYPES.map(t => [t, { sine: 'seno', cosine: 'coseno', wobble: 'temblor' }[t]]),
+      select(MOTION_TYPES.map(t => [t, { sine: 'sine', cosine: 'cosine', wobble: 'wobble' }[t]]),
              m.type || 'sine', v => ctx.editUI('motion', a => { a.motion[i].type = v; })),
-      select([['y', 'eje y'], ['x', 'eje x']], m.axis || 'y',
+      select([['y', 'y axis'], ['x', 'x axis']], m.axis || 'y',
              v => ctx.editUI('motion', a => { a.motion[i].axis = v; })),
       button('×', () => ctx.edit(null, a => {
         a.motion.splice(i, 1);
@@ -228,19 +228,19 @@ function motionBlock(actor, ctx) {
       }), 'slim danger'),
     ]),
     h('div.row', {}, [
-      field('Amplitud', number(m.amp ?? 0, v => ctx.editUI('motion', a => { a.motion[i].amp = v; }), { step: 0.5 })),
+      field('Amplitude', number(m.amp ?? 0, v => ctx.editUI('motion', a => { a.motion[i].amp = v; }), { step: 0.5 })),
       m.type === 'wobble'
-        ? field('Sostener', number(m.hold ?? 8, v => ctx.editUI('motion', a => { a.motion[i].hold = Math.max(1, v | 0); }), { min: 1 }))
-        : field('Periodo', number(m.period ?? 64, v => ctx.editUI('motion', a => { a.motion[i].period = v; }), { step: 1 })),
+        ? field('Hold', number(m.hold ?? 8, v => ctx.editUI('motion', a => { a.motion[i].hold = Math.max(1, v | 0); }), { min: 1 }))
+        : field('Period', number(m.period ?? 64, v => ctx.editUI('motion', a => { a.motion[i].period = v; }), { step: 1 })),
       m.type === 'wobble' ? null
-        : field('Fase', number(m.phase ?? 0, v => ctx.editUI('motion', a => { a.motion[i].phase = v; }), { step: 15 })),
+        : field('Phase', number(m.phase ?? 0, v => ctx.editUI('motion', a => { a.motion[i].phase = v; }), { step: 15 })),
     ]),
   ]));
 
   return h('section.block', {}, [
-    h('h3', { text: 'Vaivén' }),
+    h('h3', { text: 'Motion' }),
     ...rows,
-    button('+ Añadir vaivén', () => ctx.edit(null, a => {
+    button('+ Add motion', () => ctx.edit(null, a => {
       a.motion = (a.motion || []).concat([{ type: 'sine', axis: 'y', amp: 2, period: 64 }]);
     })),
   ]);
@@ -267,7 +267,7 @@ const applyScene = (ctx, key, value) => () => {
  *
  * Offered only while it is still a loop. The shortest length that suits
  * everything is a least common multiple, and one awkward number in the scene
- * sends it to five figures — «arréglalo con 2560 fotogramas» is arithmetic, not
+ * sends it to five figures — «fix it with 2560 frames» is arithmetic, not
  * advice. Past four times what is set, it says the number and stops there.
  */
 function loopSuggestion(scene, ctx, lead, cls = 'slim') {
@@ -276,14 +276,14 @@ function loopSuggestion(scene, ctx, lead, cls = 'slim') {
   const seconds = (loop.next / scene.fps).toFixed(2);
   if (loop.next > Math.max(4 * scene.loop_frames, 512)) {
     return [h('p.note', {
-      text: `alargar el bucle no compensa: harían falta ${loop.next} fotogramas ` +
-            `(${seconds} s) para que encaje todo a la vez.`,
+      text: `lengthening the loop is not worth it: it would take ${loop.next} frames ` +
+            `(${seconds} s) for everything to fit at once.`,
     })];
   }
   return [
     h('p.note', { text: lead }),
     h('div.row.gap.wrap', {}, [button(
-      `bucle de ${loop.next} fotogramas · ${seconds} s`,
+      `loop of ${loop.next} frames · ${seconds} s`,
       applyScene(ctx, 'loop_frames', loop.next), cls)]),
   ];
 }
@@ -295,16 +295,16 @@ function loopSuggestion(scene, ctx, lead, cls = 'slim') {
 function loopBlock(scene, ctx) {
   const bad = loopWarnings(scene, ctx.periodOf || (() => 0));
   if (!bad.length) {
-    return h('p.note.ok', { text: `el bucle cierra: las ${scene.layers.length} capa(s) ` +
-      `vuelven a su sitio y los ${scene.actors.length} actor(es) a su primer cel` });
+    return h('p.note.ok', { text: `the loop closes: the ${scene.layers.length} layer(s) ` +
+      `land back where they started and the ${scene.actors.length} actor(s) on their first cel` });
   }
   return h('div.fix', {}, [
     h('p.note.warn', {
-      text: `no cierran: ${bad.map(w => (w.layer || w.actor).name).join(', ')}. ` +
-            'Selecciónalos para ver qué valores sí valen.',
+      text: `not closing: ${bad.map(w => (w.layer || w.actor).name).join(', ')}. ` +
+            'Select them to see which values would work.',
     }),
     ...loopSuggestion(scene, ctx,
-      'sin tocar ninguna velocidad, el bucle más corto en el que encaja todo:',
+      'without touching a single speed, the shortest loop everything fits into:',
       'slim accent'),
   ]);
 }
@@ -321,19 +321,18 @@ function fixBlock(layer, scene, period, ctx) {
   const options = speedOptions(layer.speed, period, scene.loop_frames);
 
   const kids = [h('p.note', {
-    text: `en ${scene.loop_frames} fotogramas la capa tiene que recorrer un número ` +
-          `entero de baldosas de ${period} px, así que la velocidad va de ` +
-          `${num(step)} en ${num(step)}:`,
+    text: `over ${scene.loop_frames} frames the layer has to travel a whole number ` +
+          `of ${period} px tiles, so the speed goes up in steps of ${num(step)}:`,
   })];
 
   if (options.length) {
     kids.push(h('div.row.gap.wrap', {}, options.map(v => button(
-      v ? `velocidad ${num(v)} · ${num(v / step)} baldosa(s)` : 'velocidad 0 · quieta',
+      v ? `speed ${num(v)} · ${num(v / step)} tile(s)` : 'speed 0 · still',
       () => ctx.edit('speed', o => { o.speed = v; }),
       'slim'))));
   }
   kids.push(...loopSuggestion(scene, ctx,
-    'o, dejando todas las velocidades como están, alargar el bucle:'));
+    'or, leaving every speed exactly as it is, lengthen the loop:'));
 
   return h('div.fix', {}, kids);
 }
@@ -343,19 +342,19 @@ function cycleNote(actor, scene, ctx) {
   const ok = scene.loop_frames % cycle === 0;
   const note = h('p.note' + (ok ? '.ok' : '.warn'), {
     text: ok
-      ? `ciclo de ${cycle} fotogramas · encaja ${scene.loop_frames / cycle} veces en el bucle`
-      : `ciclo de ${cycle} fotogramas · no divide ${scene.loop_frames}: saltará al reiniciar`,
+      ? `cycle of ${cycle} frames · fits ${scene.loop_frames / cycle} times into the loop`
+      : `cycle of ${cycle} frames · does not divide ${scene.loop_frames}: it will jump at the wrap`,
   });
   if (ok) return note;
 
   const cels = (actor.order && actor.order.length) || Math.max(1, actor.frames || 1);
   const delays = delayOptions(actor, scene.loop_frames);
   const kids = [note, h('p.note', {
-    text: `${cels} cels × retardo tiene que dividir ${scene.loop_frames}:`,
+    text: `${cels} cels × delay has to divide ${scene.loop_frames}:`,
   })];
   if (delays.length) {
     kids.push(h('div.row.gap.wrap', {}, delays.map(d => button(
-      `retardo ${d} · ciclo de ${cels * d}`,
+      `delay ${d} · cycle of ${cels * d}`,
       () => ctx.edit('delay', o => { o.delay = d; }),
       'slim'))));
   } else {
@@ -371,18 +370,18 @@ function cycleNote(actor, scene, ctx) {
       : (delayOptions({ order: back, delay: now }, scene.loop_frames)
           .sort((a, b) => Math.abs(a - now) - Math.abs(b - now))[0]);
     kids.push(h('p.note', {
-      text: `con ${cels} cels no hay retardo que valga: ${cels} no divide ` +
-            `${scene.loop_frames}. Un orden de ida y vuelta los convierte en ` +
-            `${back.length}, que sí:`,
+      text: `with ${cels} cels no delay will do: ${cels} does not divide ` +
+            `${scene.loop_frames}. A there-and-back order turns them into ` +
+            `${back.length}, which does:`,
     }));
     if (d) {
       kids.push(h('div.row.gap.wrap', {}, [button(
-        `orden ${back.join(',')}` + (d === now ? '' : ` · retardo ${d}`),
+        `order ${back.join(',')}` + (d === now ? '' : ` · delay ${d}`),
         () => ctx.edit('order', o => { o.order = back; o.delay = d; }),
         'slim')]));
     }
   }
-  kids.push(...loopSuggestion(scene, ctx, 'o alargar el bucle:'));
+  kids.push(...loopSuggestion(scene, ctx, 'or lengthen the loop:'));
   return h('div.fix', {}, kids);
 }
 
@@ -395,16 +394,16 @@ export function renderInspector(container, ctx) {
 
   if (selection.kind === 'scene') {
     const missing = ctx.missingCount();
-    container.append(h('h2', { text: 'Escena' }));
+    container.append(h('h2', { text: 'Scene' }));
     if (missing) {
       container.append(h('p.note.warn', {}, [
-        `${missing} imagen(es) de la escena no están entre los archivos cargados. `,
-        button('Reparar rutas', () => ctx.relink(), 'slim'),
+        `${missing} image(s) in the scene are not among the loaded files. `,
+        button('Repair paths', () => ctx.relink(), 'slim'),
       ]));
     }
     container.append(
       ...fieldsFor(SCENE_FIELDS, scene, ctx, (k, v) => ctx.editScene(k, v)),
-      h('p.note', { text: `vista: ${Math.ceil(scene.canvas[0] / scene.zoom)}×${Math.ceil(scene.canvas[1] / scene.zoom)} px · salida ${scene.canvas[0]}×${scene.canvas[1]} · ${(scene.loop_frames / scene.fps).toFixed(2)} s` }),
+      h('p.note', { text: `view: ${Math.ceil(scene.canvas[0] / scene.zoom)}×${Math.ceil(scene.canvas[1] / scene.zoom)} px · output ${scene.canvas[0]}×${scene.canvas[1]} · ${(scene.loop_frames / scene.fps).toFixed(2)} s` }),
       loopBlock(scene, ctx),
     );
     return;
@@ -414,7 +413,7 @@ export function renderInspector(container, ctx) {
   const list = isLayer ? scene.layers : scene.actors;
   const obj = list[selection.index];
   if (!obj) {
-    container.append(h('p.note', { text: 'nada seleccionado' }));
+    container.append(h('p.note', { text: 'nothing selected' }));
     return;
   }
 
@@ -423,18 +422,18 @@ export function renderInspector(container, ctx) {
 
   container.append(
     h('div.row.between', {}, [
-      h('h2', { text: isLayer ? 'Capa' : 'Actor' }),
+      h('h2', { text: isLayer ? 'Layer' : 'Actor' }),
       h('div.row.gap', {}, [
-        button('Duplicar', () => ctx.duplicate(), 'slim'),
-        button('Eliminar', () => ctx.remove(), 'slim danger'),
+        button('Duplicate', () => ctx.duplicate(), 'slim'),
+        button('Delete', () => ctx.remove(), 'slim danger'),
       ]),
     ]),
   );
 
   if (obj.sprite && !ctx.hasAsset(obj.sprite)) {
     container.append(h('p.note.warn', {}, [
-      `no encuentro «${ctx.fullPath(obj.sprite)}» entre los archivos cargados. `,
-      button('Reparar rutas', () => ctx.relink(), 'slim'),
+      `cannot find «${ctx.fullPath(obj.sprite)}» among the loaded files. `,
+      button('Repair paths', () => ctx.relink(), 'slim'),
     ]));
   }
 
@@ -451,10 +450,10 @@ export function renderInspector(container, ctx) {
     const ok = !period || !off;
     container.append(h('p.note' + (ok ? '.ok' : '.warn'), {
       text: period
-        ? `recorre ${travel} px en el bucle sobre un periodo de ${period} px` +
-          (ok ? ` · cierra sin costura, ${travel / period} baldosa(s) por bucle`
-              : ` · no cierra: saltará ${Math.min(off, period - off)} px`)
-        : 'esperando a que cargue la imagen para saber su periodo',
+        ? `travels ${travel} px per loop over a ${period} px period` +
+          (ok ? ` · closes seamlessly, ${travel / period} tile(s) per loop`
+              : ` · does not close: it will jump ${Math.min(off, period - off)} px`)
+        : 'waiting for the image to load to know its period',
     }));
     if (!ok) container.append(fixBlock(obj, scene, period, ctx));
   }
