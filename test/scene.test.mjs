@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   defaultScene, normalize, compact, viewSize, worldOffset, actorCycle, cycleWarnings,
-  seamWarnings, loopWarnings,
+  seamWarnings, loopWarnings, speedOptions, delayOptions, loopOptions, ratio,
 } from '../src/scene.js';
 
 test('normalize fills the gaps without touching the input', () => {
@@ -137,4 +137,108 @@ test('loopWarnings gathers both halves of the same mistake', () => {
     actors: [{ name: 'walker', sprite: 'w.png', frames: 3, delay: 5 }],
   });
   assert.deepEqual(loopWarnings(s).map(w => (w.layer || w.actor).name), ['hills', 'walker']);
+});
+
+// -------------------------------------------------- making the loop close --
+
+test('ratio finds the fraction behind the speeds anyone actually types', () => {
+  assert.deepEqual(ratio(2), [2, 1]);
+  assert.deepEqual(ratio(0.5), [1, 2]);
+  assert.deepEqual(ratio(1.5), [3, 2]);
+  assert.deepEqual(ratio(0.125), [1, 8]);
+  assert.deepEqual(ratio(0), [0, 1]);
+});
+
+test('the speeds offered are the ones either side that close', () => {
+  // a 256 px tile over 128 frames closes every 2 px per frame
+  assert.deepEqual(speedOptions(1, 256, 128), [0, 2]);
+  assert.deepEqual(speedOptions(3, 256, 128), [2, 4]);
+  assert.deepEqual(speedOptions(0.4, 256, 256), [0, 1]);
+});
+
+test('a speed that already closes is not offered back to you', () => {
+  assert.deepEqual(speedOptions(2, 256, 128), [4], 'only the next one up is new');
+  assert.deepEqual(speedOptions(0, 256, 128), [2]);
+});
+
+test('no period means no advice worth giving', () => {
+  assert.deepEqual(speedOptions(1, 0, 128), []);
+  assert.deepEqual(speedOptions(1, 256, 0), []);
+});
+
+test('the delays offered divide the loop, either side of the one set', () => {
+  // 3 cels into 128 frames: only delays whose 3×d divides 128… none do
+  assert.deepEqual(delayOptions({ frames: 3, delay: 5 }, 128), []);
+  // 4 cels into 128: 3×… no, 4×d | 128 for d in 1,2,4,8,16,32
+  assert.deepEqual(delayOptions({ frames: 4, delay: 5 }, 128), [4, 8]);
+  assert.deepEqual(delayOptions({ frames: 4, delay: 1 }, 128), [2], 'nothing below 1');
+});
+
+test('an order list, not the frame count, sets the cycle', () => {
+  assert.deepEqual(delayOptions({ frames: 3, order: [0, 1, 2, 1], delay: 3 }, 128), [2, 4]);
+});
+
+test('loopOptions finds the shortest loop that suits everything at once', () => {
+  const s = normalize({
+    loop_frames: 128,
+    layers: [
+      { name: 'far', sprite: 'a.png', speed: 0.5, tile_period: 256 },   // wants 512
+      { name: 'near', sprite: 'b.png', speed: 2, tile_period: 256 },    // wants 128
+    ],
+    actors: [{ name: 'w', sprite: 'w.png', frames: 4, delay: 4 }],      // wants 16
+  });
+  assert.deepEqual(loopOptions(s), { min: 512, next: 512 });
+});
+
+test('a loop already long enough is rounded up to the next multiple, not down', () => {
+  const s = normalize({
+    loop_frames: 200,
+    layers: [{ name: 'a', sprite: 'a.png', speed: 2, tile_period: 256 }],   // wants 128
+  });
+  assert.deepEqual(loopOptions(s), { min: 128, next: 256 });
+});
+
+test('still, hidden and unrepeated layers ask nothing of the loop', () => {
+  const s = normalize({
+    loop_frames: 60,
+    layers: [
+      { name: 'still', sprite: 'a.png', speed: 0, tile_period: 256 },
+      { name: 'hidden', sprite: 'b.png', speed: 0.5, tile_period: 256, visible: false },
+      { name: 'once', sprite: 'c.png', speed: 0.5, tile_period: 256, repeat: 'none' },
+    ],
+  });
+  assert.equal(loopOptions(s).min, 1);
+});
+
+test('a speed whose loop would be absurd gets no suggestion at all', () => {
+  const s = normalize({
+    loop_frames: 128,
+    layers: [{ name: 'odd', sprite: 'a.png', speed: 0.37, tile_period: 256 }],
+  });
+  assert.equal(loopOptions(s), null, 'change the speed, not the loop');
+});
+
+test('what loopOptions proposes actually silences the warnings', () => {
+  const s = normalize({
+    loop_frames: 100,
+    layers: [
+      { name: 'far', sprite: 'a.png', speed: 0.5, tile_period: 256 },
+      { name: 'near', sprite: 'b.png', speed: 3, tile_period: 192 },
+    ],
+    actors: [{ name: 'w', sprite: 'w.png', frames: 3, delay: 5 }],
+  });
+  assert.ok(loopWarnings(s).length, 'starts broken');
+  s.loop_frames = loopOptions(s).next;
+  assert.deepEqual(loopWarnings(s), []);
+});
+
+test('what speedOptions proposes actually silences the warning', () => {
+  const s = normalize({
+    loop_frames: 128,
+    layers: [{ name: 'hills', sprite: 'h.png', speed: 1, tile_period: 256 }],
+  });
+  for (const v of speedOptions(1, 256, 128)) {
+    s.layers[0].speed = v;
+    assert.deepEqual(seamWarnings(s), [], `speed ${v} should close`);
+  }
 });

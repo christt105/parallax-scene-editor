@@ -2,7 +2,8 @@
 // loop, so adding a property to the scene format is a one-line change here.
 
 import { h, clear, field, select, number, toggle, button } from './dom.js';
-import { ANCHORS, EASES, MOTION_TYPES, actorCycle, layerShift } from '../scene.js';
+import { ANCHORS, EASES, MOTION_TYPES, actorCycle, layerShift,
+         speedOptions, delayOptions, loopOptions, loopWarnings } from '../scene.js';
 import { sampleKeys } from '../anim.js';
 
 const SCENE_FIELDS = [
@@ -245,14 +246,144 @@ function motionBlock(actor, ctx) {
   ]);
 }
 
-function cycleNote(actor, scene) {
+/** Short enough to read, exact enough to type back in. */
+const num = v => String(Math.round(v * 10000) / 10000);
+
+/**
+ * A scene edit made by pressing a button rather than typing.
+ *
+ * `editScene` leaves the panel alone on purpose — rebuilding it mid-keystroke
+ * pulls the caret out of the field. A button has no caret to protect, and a
+ * panel still showing «no cierra» after you pressed the thing that fixes it is
+ * the worst of both.
+ */
+const applyScene = (ctx, key, value) => () => {
+  ctx.editScene(key, value);
+  ctx.suppressInspector = false;
+};
+
+/**
+ * The other way out: leave every speed alone and make the loop longer.
+ *
+ * Offered only while it is still a loop. The shortest length that suits
+ * everything is a least common multiple, and one awkward number in the scene
+ * sends it to five figures — «arréglalo con 2560 fotogramas» is arithmetic, not
+ * advice. Past four times what is set, it says the number and stops there.
+ */
+function loopSuggestion(scene, ctx, lead, cls = 'slim') {
+  const loop = loopOptions(scene, ctx.periodOf || (() => 0));
+  if (!loop || loop.next === scene.loop_frames) return [];
+  const seconds = (loop.next / scene.fps).toFixed(2);
+  if (loop.next > Math.max(4 * scene.loop_frames, 512)) {
+    return [h('p.note', {
+      text: `alargar el bucle no compensa: harían falta ${loop.next} fotogramas ` +
+            `(${seconds} s) para que encaje todo a la vez.`,
+    })];
+  }
+  return [
+    h('p.note', { text: lead }),
+    h('div.row.gap.wrap', {}, [button(
+      `bucle de ${loop.next} fotogramas · ${seconds} s`,
+      applyScene(ctx, 'loop_frames', loop.next), cls)]),
+  ];
+}
+
+/**
+ * The whole loop, from the scene panel: what does not close, and the one
+ * number that would fix all of it at once without touching any speed.
+ */
+function loopBlock(scene, ctx) {
+  const bad = loopWarnings(scene, ctx.periodOf || (() => 0));
+  if (!bad.length) {
+    return h('p.note.ok', { text: `el bucle cierra: las ${scene.layers.length} capa(s) ` +
+      `vuelven a su sitio y los ${scene.actors.length} actor(es) a su primer cel` });
+  }
+  return h('div.fix', {}, [
+    h('p.note.warn', {
+      text: `no cierran: ${bad.map(w => (w.layer || w.actor).name).join(', ')}. ` +
+            'Selecciónalos para ver qué valores sí valen.',
+    }),
+    ...loopSuggestion(scene, ctx,
+      'sin tocar ninguna velocidad, el bucle más corto en el que encaja todo:',
+      'slim accent'),
+  ]);
+}
+
+/**
+ * The part that was missing: not «esto no cierra» but «pon esto».
+ *
+ * Both ways out are offered because they are different decisions. Changing the
+ * speed moves one layer and leaves the rest of the scene alone; changing
+ * `loop_frames` keeps every speed exactly as chosen and makes the loop longer.
+ */
+function fixBlock(layer, scene, period, ctx) {
+  const step = period / scene.loop_frames;
+  const options = speedOptions(layer.speed, period, scene.loop_frames);
+
+  const kids = [h('p.note', {
+    text: `en ${scene.loop_frames} fotogramas la capa tiene que recorrer un número ` +
+          `entero de baldosas de ${period} px, así que la velocidad va de ` +
+          `${num(step)} en ${num(step)}:`,
+  })];
+
+  if (options.length) {
+    kids.push(h('div.row.gap.wrap', {}, options.map(v => button(
+      v ? `velocidad ${num(v)} · ${num(v / step)} baldosa(s)` : 'velocidad 0 · quieta',
+      () => ctx.edit('speed', o => { o.speed = v; }),
+      'slim'))));
+  }
+  kids.push(...loopSuggestion(scene, ctx,
+    'o, dejando todas las velocidades como están, alargar el bucle:'));
+
+  return h('div.fix', {}, kids);
+}
+
+function cycleNote(actor, scene, ctx) {
   const cycle = actorCycle(actor);
   const ok = scene.loop_frames % cycle === 0;
-  return h('p.note' + (ok ? '.ok' : '.warn'), {
+  const note = h('p.note' + (ok ? '.ok' : '.warn'), {
     text: ok
       ? `ciclo de ${cycle} fotogramas · encaja ${scene.loop_frames / cycle} veces en el bucle`
       : `ciclo de ${cycle} fotogramas · no divide ${scene.loop_frames}: saltará al reiniciar`,
   });
+  if (ok) return note;
+
+  const cels = (actor.order && actor.order.length) || Math.max(1, actor.frames || 1);
+  const delays = delayOptions(actor, scene.loop_frames);
+  const kids = [note, h('p.note', {
+    text: `${cels} cels × retardo tiene que dividir ${scene.loop_frames}:`,
+  })];
+  if (delays.length) {
+    kids.push(h('div.row.gap.wrap', {}, delays.map(d => button(
+      `retardo ${d} · ciclo de ${cels * d}`,
+      () => ctx.edit('delay', o => { o.delay = d; }),
+      'slim'))));
+  } else {
+    // No delay works because the cel count itself does not divide the loop.
+    // A there-and-back order turns three cels into four, and four divides most
+    // loops anyone picks — but only alongside a delay that suits the new count,
+    // or the button would hand back the same warning it was pressed to clear.
+    const back = [...Array(cels).keys()].concat(
+      [...Array(Math.max(0, cels - 2)).keys()].map(i => cels - 2 - i));
+    const now = Math.max(1, actor.delay | 0 || 1);
+    const fits = scene.loop_frames % (back.length * now) === 0;
+    const d = fits ? now
+      : (delayOptions({ order: back, delay: now }, scene.loop_frames)
+          .sort((a, b) => Math.abs(a - now) - Math.abs(b - now))[0]);
+    kids.push(h('p.note', {
+      text: `con ${cels} cels no hay retardo que valga: ${cels} no divide ` +
+            `${scene.loop_frames}. Un orden de ida y vuelta los convierte en ` +
+            `${back.length}, que sí:`,
+    }));
+    if (d) {
+      kids.push(h('div.row.gap.wrap', {}, [button(
+        `orden ${back.join(',')}` + (d === now ? '' : ` · retardo ${d}`),
+        () => ctx.edit('order', o => { o.order = back; o.delay = d; }),
+        'slim')]));
+    }
+  }
+  kids.push(...loopSuggestion(scene, ctx, 'o alargar el bucle:'));
+  return h('div.fix', {}, kids);
 }
 
 // ------------------------------------------------------------------- entry --
@@ -274,6 +405,7 @@ export function renderInspector(container, ctx) {
     container.append(
       ...fieldsFor(SCENE_FIELDS, scene, ctx, (k, v) => ctx.editScene(k, v)),
       h('p.note', { text: `vista: ${Math.ceil(scene.canvas[0] / scene.zoom)}×${Math.ceil(scene.canvas[1] / scene.zoom)} px · salida ${scene.canvas[0]}×${scene.canvas[1]} · ${(scene.loop_frames / scene.fps).toFixed(2)} s` }),
+      loopBlock(scene, ctx),
     );
     return;
   }
@@ -309,7 +441,7 @@ export function renderInspector(container, ctx) {
   container.append(...fieldsFor(specs, obj, ctx, onSet));
 
   if (!isLayer) {
-    container.append(cycleNote(obj, scene), positionBlock(obj, ctx), motionBlock(obj, ctx));
+    container.append(cycleNote(obj, scene, ctx), positionBlock(obj, ctx), motionBlock(obj, ctx));
   } else {
     const img = ctx.resolve(obj.sprite);
     const period = Math.round(obj.tile_period) || (img ? img.naturalWidth : 0);
@@ -320,9 +452,10 @@ export function renderInspector(container, ctx) {
     container.append(h('p.note' + (ok ? '.ok' : '.warn'), {
       text: period
         ? `recorre ${travel} px en el bucle sobre un periodo de ${period} px` +
-          (ok ? ' · cierra sin costura'
+          (ok ? ` · cierra sin costura, ${travel / period} baldosa(s) por bucle`
               : ` · no cierra: saltará ${Math.min(off, period - off)} px`)
         : 'esperando a que cargue la imagen para saber su periodo',
     }));
+    if (!ok) container.append(fixBlock(obj, scene, period, ctx));
   }
 }
