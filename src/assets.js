@@ -6,6 +6,8 @@
 //   drop    — files or folders dragged onto the page. Read-only, works anywhere.
 //   url     — a manifest of paths fetched over HTTP; used for the bundled demo.
 
+import { FileWatcher } from './watch.js';
+
 const IMAGE_RE = /\.(png|gif|jpe?g|webp|bmp)$/i;
 const MAX_FILES = 30000;
 
@@ -17,12 +19,23 @@ export const normPath = p => String(p).replace(/\\/g, '/').replace(/^\.\//, '').
 export class AssetLibrary {
   constructor(onChange = () => {}) {
     this.onChange = onChange;
+    this.onReload = () => {};
     this.mode = 'none';
     this.label = '';
     this.dirHandle = null;
     this.entries = new Map();   // path -> { handle } | { file } | { url }
     this.images = new Map();    // path -> HTMLImageElement (loaded or loading)
     this.failed = new Set();
+
+    // Only what is on screen is watched. Dropped files are snapshots the
+    // browser took at drop time and the demo lives on a web server, so in both
+    // cases there is nothing on disk left to notice.
+    this.watcher = new FileWatcher({
+      list: () => [...this.images.keys()].filter(k => this.entries.get(k)?.handle),
+      stamp: key => this._stamp(key),
+      onChanged: keys => this._reloadAll(keys),
+      paused: () => typeof document !== 'undefined' && document.hidden,
+    });
   }
 
   get canWrite() { return this.mode === 'folder' && !!this.dirHandle; }
@@ -47,19 +60,51 @@ export class AssetLibrary {
     const entry = this.entries.get(key);
     const img = new Image();
     this.images.set(key, img);
-    img.onload = () => this.onChange();
     img.onerror = () => { this.failed.add(key); this.images.delete(key); };
     try {
-      if (entry.url) img.src = entry.url;
-      else {
-        const file = entry.file || await entry.handle.getFile();
-        img.src = URL.createObjectURL(file);
+      if (entry.url) {
+        img.onload = () => this.onChange();
+        img.src = entry.url;
+        return;
       }
+      const file = entry.file || await entry.handle.getFile();
+      // Stamped only once the bytes decoded, so a sprite read mid-save stays
+      // "changed" for the watcher and comes back on the next round.
+      img.onload = () => {
+        if (entry.handle) this.watcher.mark(key, file.lastModified);
+        this.onChange();
+      };
+      img.src = URL.createObjectURL(file);
     } catch {
       this.failed.add(key);
       this.images.delete(key);
     }
   }
+
+  _drop(key) {
+    const img = this.images.get(key);
+    if (img && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+    this.images.delete(key);
+    this.failed.delete(key);
+  }
+
+  async _stamp(key) {
+    const entry = this.entries.get(key);
+    if (!entry?.handle) return null;
+    try { return (await entry.handle.getFile()).lastModified; } catch { return null; }
+  }
+
+  async _reloadAll(keys) {
+    for (const key of keys) {
+      this._drop(key);
+      await this._load(key);
+    }
+    this.onChange();
+    this.onReload(keys);
+  }
+
+  /** Watch the loaded images for edits made outside the editor. */
+  watch(on = true) { on ? this.watcher.start() : this.watcher.stop(); }
 
   /** Force a reload of everything, e.g. after editing a sprite in Aseprite. */
   refresh() {
@@ -68,6 +113,7 @@ export class AssetLibrary {
     }
     this.images.clear();
     this.failed.clear();
+    this.watcher.clear();
     this.onChange();
   }
 

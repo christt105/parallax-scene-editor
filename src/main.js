@@ -1026,6 +1026,14 @@ function bindToolbar() {
 
 async function boot() {
   app.assets = new AssetLibrary(() => { markPanels(); });
+  // Repaint a sprite in Aseprite and it lands here on its own; the alternative
+  // was alt-tabbing back to press «recargar» after every single save.
+  app.assets.onReload = paths => {
+    const names = paths.map(p => p.split('/').pop());
+    say(`actualizado desde el disco: ${names.slice(0, 3).join(', ')}` +
+        (names.length > 3 ? ` y ${names.length - 3} más` : ''), 'ok');
+  };
+  app.assets.watch(true);
   app.disk = new DiskAutosave({
     write: (path, text) => app.assets.writeText(path, text),
     onState: state => {
