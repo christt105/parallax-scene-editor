@@ -132,7 +132,7 @@ export class Stage {
 
     if (selection.kind === 'actor') {
       const actor = scene.actors[selection.index];
-      if (actor) this.drawActorGizmo(g, actor, scene, frame, dy, s);
+      if (actor) this.drawActorGizmo(g, actor, scene, frame, dy);
     }
     if (selection.kind === 'layer') {
       const layer = scene.layers[selection.index];
@@ -145,7 +145,7 @@ export class Stage {
     }
   }
 
-  drawActorGizmo(g, actor, scene, frame, dy, s) {
+  drawActorGizmo(g, actor, scene, frame, dy) {
     const img = this.ctx.resolve(actor.sprite);
     const box = img && actorBox(actor, img, frame, scene.loop_frames, dy);
     if (box) {

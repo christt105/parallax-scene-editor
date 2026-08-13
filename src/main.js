@@ -450,12 +450,9 @@ function assetCard(path, onclick) {
 
 // -------------------------------------------------------- hover preview --
 
-let previewFor = null;
-
 function showPreview(path, ev) {
   const img = app.assets.get(path);
   const box = $('#asset-preview');
-  previewFor = path;
   if (!img) { box.hidden = true; return; }   // still loading; the next hover shows it
 
   const w = img.naturalWidth, hgt = img.naturalHeight;
@@ -473,7 +470,6 @@ function showPreview(path, ev) {
 }
 
 function hidePreview() {
-  previewFor = null;
   $('#asset-preview').hidden = true;
 }
 

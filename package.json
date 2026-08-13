@@ -6,9 +6,13 @@
   "scripts": {
     "test": "node --test",
     "test:e2e": "playwright test",
+    "lint": "eslint .",
     "serve": "python3 -m http.server 8000"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.0"
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.49.0",
+    "eslint": "^9.39.5",
+    "globals": "^17.11.0"
   }
 }
