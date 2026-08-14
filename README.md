@@ -6,7 +6,7 @@ or a PNG sequence. No server, no build step, and nothing is uploaded anywhere.
 
 **→ [Open the editor](https://christt105.github.io/parallax-scene-editor/)**
 
-![demo](demo/assets/layers/ground.png)
+![demo](docs/preview.png)
 
 ## What it solves
 
