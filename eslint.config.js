@@ -4,7 +4,7 @@ import globals from 'globals';
 // Default recommended rules only, split by where each part of the tree runs:
 // browser globals for src/, Node for the tests.
 export default [
-  { ignores: ['demo/', 'tools/'] },
+  { ignores: ['demo/', 'tools/', '.claude/'] },
 
   js.configs.recommended,
 
