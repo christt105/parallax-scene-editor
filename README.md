@@ -301,7 +301,7 @@ There is nothing third-party in the repository.
 ## Running it locally
 
 ```bash
-python3 -m http.server 8000
+npm run serve
 ```
 
 and open `http://127.0.0.1:8000/`. Any static server will do; one is needed
