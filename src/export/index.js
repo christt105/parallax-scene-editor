@@ -53,7 +53,7 @@ export async function exportGIF(scene, resolve, { step = 1, onProgress = () => {
   for (let i = 0; i < frames.length; i++) {
     renderFrameTo(out, scene, frames[i], resolve, scratch);
     builder.add(ctx.getImageData(0, 0, w, h).data);
-    onProgress(i / frames.length * 0.45, `analizando ${i + 1}/${frames.length}`);
+    onProgress(i / frames.length * 0.45, `analyzing ${i + 1}/${frames.length}`);
     if (i % 4 === 3) await yieldUI();
   }
   const { palette, map, exact } = builder.finish();
@@ -64,7 +64,7 @@ export async function exportGIF(scene, resolve, { step = 1, onProgress = () => {
   for (let i = 0; i < frames.length; i++) {
     renderFrameTo(out, scene, frames[i], resolve, scratch);
     gif.addFrame(map(ctx.getImageData(0, 0, w, h).data));
-    onProgress(0.45 + i / frames.length * 0.55, `codificando ${i + 1}/${frames.length}`);
+    onProgress(0.45 + i / frames.length * 0.55, `encoding ${i + 1}/${frames.length}`);
     if (i % 4 === 3) await yieldUI();
   }
   return { blob: gif.blob(), exact, colors: palette.length, frames: frames.length };
@@ -121,7 +121,7 @@ export async function exportWebM(scene, resolve, { step = 1, onProgress = () => 
   for (let i = 0; i < frames.length; i++) {
     renderFrameTo(out, scene, frames[i], resolve, scratch);
     track.requestFrame();
-    onProgress((i + 1) / frames.length, `grabando ${i + 1}/${frames.length}`);
+    onProgress((i + 1) / frames.length, `recording ${i + 1}/${frames.length}`);
     const wait = t0 + (i + 1) * interval - performance.now();
     if (wait > 0) await sleep(wait);
   }

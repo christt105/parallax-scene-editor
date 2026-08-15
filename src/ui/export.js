@@ -36,7 +36,7 @@ async function packageScene(app, onProgress = () => {}) {
     name: 'scene.json',
     data: new TextEncoder().encode(JSON.stringify(scene, null, 2)),
   });
-  onProgress(1, 'comprimiendo');
+  onProgress(1, 'compressing');
   return { blob: makeZip(files), missing };
 }
 
@@ -116,7 +116,7 @@ export function exportModal(app) {
                 res.missing.slice(0, 3).join(', '), 'err');
           }
           return res;
-        }, `${name}_proyecto.zip`)),
+        }, `${name}_project.zip`)),
       ]),
     ]),
     h('div.modal-actions', {}, [
