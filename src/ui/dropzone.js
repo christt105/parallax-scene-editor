@@ -38,7 +38,7 @@ export function bindDrop(app) {
     syncProjectLabel(app);
     if (!n) return say('no images in what you dropped', 'err');
     say(had ? `${n} file(s) added to the ${had} already loaded`
-            : `${n} files loaded (read-only)`, 'ok');
+            : `${n} files loaded (read-only snapshot)`, 'ok');
     if (app.missingCount()) app.relink();
     const scenes = app.assets.sceneFiles();
     if (!had && scenes.length) offerScenes(app, scenes);
