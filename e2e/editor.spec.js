@@ -467,3 +467,35 @@ test('the scene survives a reload', async ({ page }) => {
   expect(await page.evaluate(() => window.editor.store.scene.actors[0].name))
     .toBe('survivor');
 });
+
+/**
+ * The File System Access API is Chromium-only to start with, so there is no
+ * way to make Playwright's own browser lack it or pretend to be Brave — these
+ * stub the two globals `browser-support.js` reads, which is the only part of
+ * the Brave/Firefox/Safari messaging that runs as ordinary JS.
+ */
+async function bootWithoutFolderAccess(page, { brave } = {}) {
+  await page.addInitScript(brave => {
+    Object.defineProperty(window, 'showDirectoryPicker', { value: undefined, configurable: true });
+    if (brave) {
+      Object.defineProperty(navigator, 'brave', {
+        value: { isBrave: () => Promise.resolve(true) },
+        configurable: true,
+      });
+    }
+  }, brave);
+  await page.goto('/');
+  await page.waitForFunction(() => !!window.editor?.folderSupport, null, { timeout: 15000 });
+}
+
+test('Brave is told about the flag, not that it lacks the API', async ({ page }) => {
+  await bootWithoutFolderAccess(page, { brave: true });
+  expect(await page.evaluate(() => window.editor.folderSupport)).toBe('brave');
+  await expect(page.locator('#btn-project')).toHaveAttribute('title', /brave:\/\/flags/);
+});
+
+test('a browser without the API and without Brave is told read-only is permanent', async ({ page }) => {
+  await bootWithoutFolderAccess(page, { brave: false });
+  expect(await page.evaluate(() => window.editor.folderSupport)).toBe('none');
+  await expect(page.locator('#btn-project')).toHaveAttribute('title', /Download/);
+});

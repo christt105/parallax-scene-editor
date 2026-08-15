@@ -2,7 +2,8 @@
 //
 // Three ways in, in order of how pleasant they are:
 //   folder  — File System Access API. Reads every image in the folder you pick
-//             and writes the scene back into it. Chromium only, today.
+//             and writes the scene back into it. Chromium desktop only: Brave
+//             needs a flag flipped, Firefox and Safari never gain it.
 //   drop    — files or folders dragged onto the page. Read-only, works anywhere.
 //   url     — a manifest of paths fetched over HTTP; used for the bundled demo.
 

@@ -9,6 +9,7 @@ import { h, $ } from './dom.js';
 import { say } from './status.js';
 import { openModal, closeModal } from './modal.js';
 import { renderAssets } from './assets.js';
+import { folderSupportTitle } from '../browser-support.js';
 
 // -------------------------------------------------------- disk autosave --
 
@@ -43,10 +44,14 @@ export function syncSaveState(app) {
   let text, cls = 'pill save-state', title = '';
   if (!app.assets.canWrite) {
     text = 'browser only';
-    title = app.assets.count
-      ? 'these files are read-only; open a folder to write to disk'
-      : 'open a folder and the scene will save itself to disk';
     cls += ' muted';
+    if (app.folderSupport && app.folderSupport !== 'ok') {
+      title = folderSupportTitle(app.folderSupport);
+    } else {
+      title = app.assets.count
+        ? 'these files are a read-only snapshot; open a folder to write to disk'
+        : 'open a folder and the scene will save itself to disk';
+    }
   } else if (disk.state === ERROR) {
     text = `autosave stopped: ${disk.error?.message || 'the write failed'}`;
     title = 'tick “auto” again to retry';
@@ -98,7 +103,7 @@ export function syncProjectLabel(app) {
   const label = $('#project-label');
   label.hidden = !app.assets.label;
   label.textContent = app.assets.label
-    ? `${app.assets.label} · ${app.assets.count} files${app.assets.canWrite ? '' : ' (read-only)'}`
+    ? `${app.assets.label} · ${app.assets.count} files${app.assets.canWrite ? '' : ' (read-only snapshot)'}`
     : '';
   $('#btn-save').textContent = app.assets.canWrite ? 'Save' : 'Download';
   syncSaveState(app);

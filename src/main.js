@@ -21,6 +21,7 @@ import { bindKeys, helpModal } from './ui/shortcuts.js';
 import { bindDrop } from './ui/dropzone.js';
 import * as storage from './storage.js';
 import { DiskAutosave, SAVED, ERROR } from './autosave.js';
+import { detectFolderSupport, folderSupportTitle } from './browser-support.js';
 
 const DEMO = 'demo';
 
@@ -34,6 +35,7 @@ const app = {
   suppressInspector: false,
   scenePath: null,
   lastTick: 0,
+  folderSupport: null,
 };
 
 // --------------------------------------------------------------- helpers --
@@ -340,7 +342,7 @@ function bindToolbar() {
   $('#file-input').onchange = e => {
     const n = app.assets.adoptFiles(e.target.files);
     syncProjectLabel(app);
-    say(n ? `${n} files loaded (read-only)` : 'no images found', n ? 'ok' : 'err');
+    say(n ? `${n} files loaded (read-only snapshot)` : 'no images found', n ? 'ok' : 'err');
     e.target.value = '';
   };
   $('#btn-save').onclick = () => saveScene(app);
@@ -440,9 +442,9 @@ async function boot() {
   bindKeys(app);
   bindDrop(app);
 
-  if (!AssetLibrary.supportsFolder) {
-    $('#btn-project').textContent = 'Open folder…';
-    $('#btn-project').title = 'This browser cannot write to disk: it will load read-only';
+  app.folderSupport = await detectFolderSupport();
+  if (app.folderSupport !== 'ok') {
+    $('#btn-project').title = folderSupportTitle(app.folderSupport);
   }
 
   const saved = await storage.get('autosave');

@@ -29,9 +29,15 @@ Opening the page loads an example scene. To work on your own:
 3. From there **the file follows the editor**: every change is written to disk
    on its own, a few hundred milliseconds after you stop touching it.
 
-Opening folders needs the File System Access API: **Chrome, Edge, Opera or
-Brave**. On Firefox and Safari the button loads the files read-only and *Save*
-downloads the JSON instead.
+Opening folders with write access needs the File System Access API, which is
+Chromium desktop only. **Chrome, Edge and Opera** have shipped it since v86;
+**Brave** ships the same engine but keeps it behind a flag, off by default —
+turn it on at `brave://flags` (search "File System") and reload the page.
+**Firefox and Safari never expose it, in any version, on desktop or mobile** —
+they only have OPFS, a private sandbox that cannot see your real folders.
+Outside Chromium desktop, or on Brave until the flag is flipped, the button
+still works but hands back a read-only snapshot of the folder rather than a
+live link to it; *Save* downloads the JSON instead.
 
 ### Working against the disk
 
@@ -66,8 +72,8 @@ you only have to grant permission on the folder again, which is the one thing
 the browser will not let anyone automate.
 
 You can also **drag** a folder or a few loose files onto the page. That works
-in every browser, but read-only. Dropping files **adds** to what is already
-loaded rather than replacing it.
+in every browser, but as a read-only snapshot. Dropping files **adds** to what
+is already loaded rather than replacing it.
 
 ### Where it looks for the images
 
