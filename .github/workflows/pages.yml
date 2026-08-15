@@ -44,8 +44,18 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run lint
+
   deploy:
-    needs: [test, e2e]
+    needs: [test, e2e, lint]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
