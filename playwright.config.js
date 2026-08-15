@@ -13,7 +13,7 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'python3 -m http.server 8123 --bind 127.0.0.1',
+    command: 'node tools/serve.js 8123',
     url: 'http://127.0.0.1:8123/index.html',
     reuseExistingServer: !process.env.CI,
     stdout: 'ignore',
