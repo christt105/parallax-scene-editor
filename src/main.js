@@ -300,13 +300,25 @@ function syncPanels() {
 
 const autosave = storage.debounced('autosave');
 
+// A display slower than the scene, or a stutter, leaves us a frame or three
+// behind; taking those in one tick keeps playback on time. Past that we are not
+// late, we were away.
+const MAX_CATCHUP = 4;
+
 function tick(t) {
   if (app.playing) {
     const interval = 1000 / app.store.scene.fps;
-    if (t - app.lastTick >= interval) {
-      const steps = Math.min(4, Math.floor((t - app.lastTick) / interval));
-      app.lastTick += steps * interval;
-      app.setFrame(app.frame + steps);
+    const behind = Math.floor((t - app.lastTick) / interval);
+    if (behind > MAX_CATCHUP) {
+      // Minimizing the window stops the frames coming, so we return owing
+      // hundreds of them, and paying that back four at a time ran the scene
+      // several times too fast until the debt cleared. Nobody was watching the
+      // frames we missed: write them off and start the clock again from now.
+      app.lastTick = t;
+      app.setFrame(app.frame + 1);
+    } else if (behind > 0) {
+      app.lastTick += behind * interval;
+      app.setFrame(app.frame + behind);
     }
   }
   app.stage.draw();

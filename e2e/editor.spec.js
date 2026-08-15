@@ -227,6 +227,42 @@ test('the playhead advances and the scrubber follows', async ({ page }) => {
   await expect(page.locator('#scrub')).toHaveValue(String(stopped + 1));
 });
 
+test('coming back from a minimized window does not fast-forward the playback', async ({ page }) => {
+  await boot(page);
+
+  // Minimizing stops the animation frames but not the clock, so we come back
+  // owing thousands of milliseconds. That is what an old `lastTick` stands in
+  // for here — the frames used to be paid back several per tick, and the scene
+  // sprinted until the debt cleared.
+  const run = await page.evaluate(async () => {
+    const a = window.editor;
+    a.pause();
+    a.setFrame(0);
+    a.togglePlay();
+    a.lastTick = performance.now() - 5000;
+
+    const loop = a.store.scene.loop_frames;
+    const start = performance.now();
+    let last = a.frame, advanced = 0;
+    await new Promise(done => {
+      const step = () => {
+        advanced += ((a.frame - last) % loop + loop) % loop;
+        last = a.frame;
+        if (performance.now() - start < 500) requestAnimationFrame(step);
+        else done();
+      };
+      requestAnimationFrame(step);
+    });
+    a.pause();
+    return { advanced, elapsed: performance.now() - start, fps: a.store.scene.fps };
+  });
+
+  const expected = run.elapsed * run.fps / 1000;
+  expect(run.advanced, 'playback should resume at its own speed, not race')
+    .toBeLessThan(expected * 2);
+  expect(run.advanced, 'and it should still be playing').toBeGreaterThan(1);
+});
+
 test('an actor can be dragged around the canvas', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => { window.editor.pause(); window.editor.setFrame(0); });
