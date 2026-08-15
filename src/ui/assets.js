@@ -29,6 +29,11 @@ function assetCard(app, path, onclick) {
 function showPreview(app, path, ev) {
   const img = app.assets.get(path);
   const box = $('#asset-preview');
+  // a modal opened with showModal() paints in the browser's top layer, above
+  // any z-index in the document — the preview has to live in that same layer
+  // (as a child of the dialog) to draw over it, or it ends up stuck behind
+  const modal = $('#modal');
+  (modal.open ? modal : document.body).append(box);
   if (!img) { box.hidden = true; return; }   // still loading; the next hover shows it
 
   const w = img.naturalWidth, hgt = img.naturalHeight;

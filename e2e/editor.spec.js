@@ -214,6 +214,32 @@ test('hovering an asset shows it larger', async ({ page }) => {
   await expect(preview).toBeHidden();
 });
 
+test('the preview clears the "Pick an image" modal instead of hiding behind it', async ({ page }) => {
+  // an open <dialog> paints in the browser's top layer, above any z-index in
+  // the document — the preview has to move into the dialog to draw over it
+  await boot(page);
+  await page.locator('#outliner-actors .add-row button').click();
+  await expect(page.locator('#modal')).toBeVisible();
+
+  const card = page.locator('#modal .asset').first();
+  await card.hover();
+
+  const preview = page.locator('#asset-preview');
+  await expect(preview).toBeVisible();
+  // the fix: while the dialog owns the top layer, the preview has to live
+  // inside it too, or it paints underneath regardless of its own z-index
+  expect(await preview.evaluate(el => el.parentElement.id)).toBe('modal');
+
+  await page.locator('#modal-close').click();
+  await expect(preview).toBeHidden();
+
+  // and the plain asset panel still gets its own preview once the modal is gone
+  await page.locator('.asset').first().hover();
+  await expect(preview).toBeVisible();
+  expect(await preview.evaluate(el => el.parentElement)).not.toBeNull();
+  expect(await preview.evaluate(el => el.parentElement.id)).not.toBe('modal');
+});
+
 test('the playhead advances and the scrubber follows', async ({ page }) => {
   await boot(page);
   await page.waitForFunction(() => window.editor.frame > 3, null, { timeout: 5000 });
