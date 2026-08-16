@@ -244,6 +244,10 @@ h3 { font-size: 12px; margin: 0 0 4px; color: var(--ink); font-weight: 600; }
 .range-value { color: var(--dim); font-size: 11px; width: 3.2em; text-align: right; }
 .toggle { display: flex; align-items: center; gap: 6px; }
 
+/* a refreshable wrapper that must not add its own box to the flex layout,
+   or the 12px gap between panel rows would double up around it */
+.warnbox { display: contents; }
+
 /* the "here is what to put" box: the arithmetic, then the buttons that do it */
 .fix {
   border: 1px solid var(--line); border-left: 2px solid var(--accent);

@@ -285,6 +285,9 @@ function syncPanels() {
   const skipInspector = app.suppressInspector;
   app.suppressInspector = false;
   if (!skipInspector) renderInspector($('#right'), app);
+  // Typing into a field skips the rebuild above to keep the caret in place,
+  // but the loop-closing verdict shown in the panel still has to catch up.
+  else app.refreshWarnings?.();
   app.timeline.render();
   $('#btn-undo').disabled = !app.store.canUndo;
   $('#btn-redo').disabled = !app.store.canRedo;

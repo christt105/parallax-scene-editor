@@ -391,6 +391,7 @@ export function renderInspector(container, ctx) {
   clear(container);
   const { store, selection } = ctx;
   const scene = store.scene;
+  ctx.refreshWarnings = null;
 
   if (selection.kind === 'scene') {
     const missing = ctx.missingCount();
@@ -404,8 +405,18 @@ export function renderInspector(container, ctx) {
     container.append(
       ...fieldsFor(SCENE_FIELDS, scene, ctx, (k, v) => ctx.editScene(k, v)),
       h('p.note', { text: `view: ${Math.ceil(scene.canvas[0] / scene.zoom)}×${Math.ceil(scene.canvas[1] / scene.zoom)} px · output ${scene.canvas[0]}×${scene.canvas[1]} · ${(scene.loop_frames / scene.fps).toFixed(2)} s` }),
-      loopBlock(scene, ctx),
     );
+    // Typing into a field above leaves the panel unrebuilt (see `control`'s
+    // `now`), so the loop-closing verdict would otherwise freeze at whatever
+    // it read on the last full render. This box is rebuilt on its own after
+    // every edit, typed or not, so it never goes stale mid-keystroke.
+    const warnBox = h('div.warnbox', {});
+    container.append(warnBox);
+    ctx.refreshWarnings = () => {
+      clear(warnBox);
+      warnBox.append(loopBlock(ctx.store.scene, ctx));
+    };
+    ctx.refreshWarnings();
     return;
   }
 
@@ -439,22 +450,42 @@ export function renderInspector(container, ctx) {
 
   container.append(...fieldsFor(specs, obj, ctx, onSet));
 
+  // Same reasoning as the scene panel's warnBox above: these verdicts read
+  // fields (speed, tile_period, frames, delay…) that are edited without a
+  // rebuild, so they need their own way to refresh after a keystroke.
+  const warnBox = h('div.warnbox', {});
+  const index = selection.index;
+
   if (!isLayer) {
-    container.append(cycleNote(obj, scene, ctx), positionBlock(obj, ctx), motionBlock(obj, ctx));
+    container.append(warnBox, positionBlock(obj, ctx), motionBlock(obj, ctx));
+    ctx.refreshWarnings = () => {
+      const actor = ctx.store.scene.actors[index];
+      if (!actor) return;
+      clear(warnBox);
+      warnBox.append(cycleNote(actor, ctx.store.scene, ctx));
+    };
   } else {
-    const img = ctx.resolve(obj.sprite);
-    const period = Math.round(obj.tile_period) || (img ? img.naturalWidth : 0);
-    // Same rounding the renderer uses, so the note and the pixels agree.
-    const travel = layerShift(obj, scene.loop_frames);
-    const off = period ? ((travel % period) + period) % period : 0;
-    const ok = !period || !off;
-    container.append(h('p.note' + (ok ? '.ok' : '.warn'), {
-      text: period
-        ? `travels ${travel} px per loop over a ${period} px period` +
-          (ok ? ` · closes seamlessly, ${travel / period} tile(s) per loop`
-              : ` · does not close: it will jump ${Math.min(off, period - off)} px`)
-        : 'waiting for the image to load to know its period',
-    }));
-    if (!ok) container.append(fixBlock(obj, scene, period, ctx));
+    container.append(warnBox);
+    ctx.refreshWarnings = () => {
+      const scene = ctx.store.scene;
+      const layer = scene.layers[index];
+      if (!layer) return;
+      const img = ctx.resolve(layer.sprite);
+      const period = Math.round(layer.tile_period) || (img ? img.naturalWidth : 0);
+      // Same rounding the renderer uses, so the note and the pixels agree.
+      const travel = layerShift(layer, scene.loop_frames);
+      const off = period ? ((travel % period) + period) % period : 0;
+      const ok = !period || !off;
+      clear(warnBox);
+      warnBox.append(h('p.note' + (ok ? '.ok' : '.warn'), {
+        text: period
+          ? `travels ${travel} px per loop over a ${period} px period` +
+            (ok ? ` · closes seamlessly, ${travel / period} tile(s) per loop`
+                : ` · does not close: it will jump ${Math.min(off, period - off)} px`)
+          : 'waiting for the image to load to know its period',
+      }));
+      if (!ok) warnBox.append(fixBlock(layer, scene, period, ctx));
+    };
   }
+  ctx.refreshWarnings();
 }
