@@ -119,6 +119,42 @@ test('an actor whose cels will never divide the loop is offered the order trick'
   await expect(panel.locator('.note.ok').first()).toContainText('fits');
 });
 
+test('typing a layer speed straight into the field updates the loop warning live', async ({ page }) => {
+  // The panel is deliberately not rebuilt while a field is being typed into
+  // (that would throw the caret out), but the loop-closing verdict has to
+  // catch up anyway — it used to only refresh on reselecting the layer.
+  await boot(page);
+  await page.evaluate(() => window.editor.select('layer', 2));
+
+  const panel = page.locator('#right');
+  await expect(panel.locator('.note.ok').first()).toContainText('closes seamlessly');
+
+  const speed = panel.locator('[data-field=speed] input');
+  await speed.fill('1.5');
+  await expect(panel.locator('.note.warn')).toContainText('does not close');
+  await expect(panel.locator('.fix button', { hasText: 'speed 2' })).toBeVisible();
+
+  await speed.fill('2');
+  await expect(panel.locator('.note.ok').first()).toContainText('closes seamlessly');
+  await expect(panel.locator('.fix')).toHaveCount(0);
+});
+
+test('typing an actor frame count straight into the field updates the loop warning live', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => window.editor.select('actor', 0));
+
+  const panel = page.locator('#right');
+  await expect(panel.locator('.note.ok').first()).toContainText('fits');
+
+  const frames = panel.locator('[data-field=frames] input');
+  await frames.fill('3');
+  await expect(panel.locator('.note.warn')).toContainText('does not divide');
+
+  await frames.fill('4');
+  await expect(panel.locator('.note.ok').first()).toContainText('fits');
+  await expect(panel.locator('.fix')).toHaveCount(0);
+});
+
 test('nothing invisible is sitting on top of the page', async ({ page }) => {
   await boot(page);
   // the bug: #drop-veil kept display:flex over the whole viewport, so every
